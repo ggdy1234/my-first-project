@@ -1,1775 +1,1045 @@
-/* ============================================================
-   WorkBuddy · 温柔成长工作台  —  主逻辑
-   ============================================================ */
+/* ============================================
+   WorkBuddy · 水系温柔成长伙伴
+   全部交互逻辑 + 内置题库 + 黄历库
+   ============================================ */
 
-(() => {
-'use strict';
+(function () {
+  "use strict";
 
-// ---------- 工具函数 ----------
-const $  = (sel, ctx = document) => ctx.querySelector(sel);
-const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
-const today = () => new Date().toISOString().slice(0, 10);
-const now   = () => new Date();
-const fmt   = (d) => { const dt = new Date(d); return `${dt.getMonth()+1}/${dt.getDate()}`; };
-const daysDiff = (a, b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
-const randomId = () => Math.random().toString(36).slice(2, 10);
-const weekDays  = ['日','一','二','三','四','五','六'];
-const weekDaysShort = ['日','一','二','三','四','五','六'];
+  // ---------- 工具函数 ----------
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+  const now = () => new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayKey = () => {
+    const d = now();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+  const monthKey = () => {
+    const d = now();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  };
+  const get = (k, fb) => {
+    try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch { return fb; }
+  };
+  const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+  const rand = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-function showToast(msg) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 1800);
-}
-
-function confettiBurst(x, y) {
-  const colors = ['#FFD6E0','#A8E6CF','#D4C5F9','#FFB088','#A0D2F7','#FFF3CD'];
-  for (let i = 0; i < 12; i++) {
-    const c = document.createElement('div');
-    c.className = 'confetti-piece';
-    c.style.left = x + 'px';
-    c.style.top  = y + 'px';
-    c.style.background = colors[Math.floor(Math.random()*colors.length)];
-    c.style.animation = `confetti ${0.6+Math.random()*0.4}s ease forwards`;
-    c.style.transform = `translate(${(Math.random()-0.5)*80}px, ${(Math.random()-0.5)*80}px) rotate(${Math.random()*360}deg)`;
-    document.body.appendChild(c);
-    setTimeout(() => c.remove(), 1000);
+  // ---------- 时段配色 ----------
+  function applyTheme() {
+    const h = now().getHours();
+    let t = "morning";
+    if (h >= 5 && h < 9) t = "morning-early";
+    else if (h >= 9 && h < 12) t = "morning";
+    else if (h >= 12 && h < 18) t = "afternoon";
+    else if (h >= 18 && h < 21) t = "evening";
+    else t = "night";
+    document.body.dataset.theme = t;
   }
-}
 
-// ---------- 数据存储 ----------
-const DB = {
-  get(k, d = null) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
-  del(k) { localStorage.removeItem(k); }
-};
-
-// ---------- 初始示例数据 ----------
-function seedData() {
-  if (DB.get('seeded')) return;
-  DB.set('seeded', true);
-
-  // 任务
-  DB.set('tasks', [
-    { id: randomId(), name: '完成工作报告', time: '09:00', cat: 'work', priority: 'high', note: '', done: false, date: today() },
-    { id: randomId(), name: '阅读30分钟', time: '20:30', cat: 'study', priority: 'mid', note: '', done: false, date: today() },
-    { id: randomId(), name: '整理票据', time: '14:00', cat: 'life', priority: 'low', note: '', done: false, date: today() },
-  ]);
-
-  // 三件事
-  DB.set('threeThings', [
-    { id: randomId(), text: '完成京剧视频脚本初稿', priority: 'high', done: false },
-    { id: randomId(), text: '跑步30分钟', priority: 'mid', done: false },
-    { id: randomId(), text: '读《思考，快与慢》1章', priority: 'low', done: false },
-  ]);
-
-  // 习惯
-  DB.set('habits', [
-    { id: randomId(), name: '早睡', emoji: '🌙', checked: false, streak: 3, history: {} },
-    { id: randomId(), name: '早起', emoji: '☀️', checked: false, streak: 5, history: {} },
-    { id: randomId(), name: '喝水', emoji: '💧', checked: false, streak: 7, history: {} },
-    { id: randomId(), name: '运动', emoji: '🏃', checked: false, streak: 2, history: {} },
-    { id: randomId(), name: '阅读', emoji: '📖', checked: false, streak: 4, history: {} },
-    { id: randomId(), name: '存钱', emoji: '💰', checked: false, streak: 1, history: {} },
-    { id: randomId(), name: '冥想', emoji: '🧘', checked: false, streak: 0, history: {} },
-  ]);
-
-  // 存钱目标
-  DB.set('savingGoals', [
-    { id: randomId(), name: '骐宝学费', icon: '🎓', target: 88000, saved: 12000, monthly: 7333, color: 'linear-gradient(90deg,#FFB088,#F5A8C8)' },
-    { id: randomId(), name: '旅行基金', icon: '✈️', target: 10000, saved: 2500, color: 'linear-gradient(90deg,#A0D2F7,#D4C5F9)' },
-    { id: randomId(), name: '应急金', icon: '🛡️', target: 30000, saved: 8000, color: 'linear-gradient(90deg,#A8E6CF,#A0D2F7)' },
-    { id: randomId(), name: '学习基金', icon: '📚', target: 5000, saved: 1200, color: 'linear-gradient(90deg,#FFF3CD,#FFB088)' },
-  ]);
-
-  // 书籍
-  DB.set('books', [
-    { id: randomId(), title: '思考，快与慢', author: '丹尼尔·卡尼曼', status: 'reading', progress: 45, rating: 0, cover: '🧠', notes: [] },
-    { id: randomId(), title: '被讨厌的勇气', author: '岸见一郎', status: 'reading', progress: 70, rating: 0, cover: '💪', notes: [] },
-    { id: randomId(), title: '万历十五年', author: '黄仁宇', status: 'want', progress: 0, rating: 0, cover: '📜', notes: [] },
-    { id: randomId(), title: '活着', author: '余华', status: 'done', progress: 100, rating: 5, cover: '🌾', notes: [] },
-  ]);
-
-  // 体重
-  const w = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    w.push({ date: d.toISOString().slice(0,10), weight: (58 + Math.random()*2 - 1).toFixed(1) });
+  // ---------- 日期/问候 ----------
+  const WEEKDAYS = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+  function updateDate() {
+    const d = now();
+    const ds = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}`;
+    $("#current-date").textContent = ds;
+    const h = d.getHours();
+    let g = "夜深了 🌙";
+    if (h >= 5 && h < 11) g = "早安 ☀️";
+    else if (h >= 11 && h < 14) g = "午安 🌤️";
+    else if (h >= 14 && h < 18) g = "下午好 🌿";
+    else if (h >= 18 && h < 22) g = "晚上好 🌆";
+    $("#greeting-text").textContent = g;
   }
-  DB.set('weight', w);
 
-  // 运动记录
-  DB.set('sports', [
-    { id: randomId(), type: '跑步', duration: 30, calories: 280, feeling: '畅快', date: today() },
-    { id: randomId(), type: '瑜伽', duration: 20, calories: 120, feeling: '轻松', date: new Date(Date.now()-86400000).toISOString().slice(0,10) },
-  ]);
-
-  // 心情
-  DB.set('moods', {});
-
-  // 收入
-  DB.set('incomes', []);
-
-  // 存钱记录
-  DB.set('savings', []);
-
-  // 精进日记
-  DB.set('growth', []);
-
-  // 草稿
-  DB.set('drafts', []);
-
-  // 口才·话术模板
-  DB.set('speechTemplates', [
-    {
-      id: randomId(), cat: 'self', title: '30秒自我介绍（通用版）',
-      content: '你好，我是[姓名]，目前从事[行业/岗位]。\n我擅长[核心技能1]和[核心技能2]，最近在深耕[兴趣方向]。\n闲暇时我喜欢[爱好]，因为它让我[收获]。\n很高兴认识大家，期待交流！'
-    },
-    {
-      id: randomId(), cat: 'self', title: '电梯演讲（职场版）',
-      content: '我是[姓名]，在[公司]负责[业务线]。\n我们刚做完一个[项目]，把[指标]提升了[数字]%。\n核心方法是[方法论关键词]。\n如果你也关注[领域]，欢迎聊聊。'
-    },
-    {
-      id: randomId(), cat: 'biz', title: '商务沟通·破冰开场',
-      content: 'X总您好，感谢您抽出时间。\n我们之前在[场景]有过接触，一直很欣赏贵团队在[领域]的[成果]。\n今天想用15分钟，跟您聊聊一个可能双赢的[合作/想法]。\n您看从哪块开始方便？'
-    },
-    {
-      id: randomId(), cat: 'biz', title: '商务·拒绝话术',
-      content: '感谢您的提议，我能感受到您的诚意。\n从我们目前的[资源/阶段/方向]来看，暂时没办法全力配合。\n但我很认可这个方向，能否先保持联系，下个季度再评估？\n也欢迎您把资料发我，我转给相关同事参考。'
-    },
-    {
-      id: randomId(), cat: 'live', title: '直播开场（京剧科普）',
-      content: '哈喽家人们！欢迎来到[直播间名称]～\n我是你们的[昵称]，一个让京剧变好玩的[身份]。\n今天要带大家解锁[主题]，只要3分钟，保证你从"听不懂"变成"有点上头"！\n新进来的家人点点关注，咱们马上开始～'
-    },
-    {
-      id: randomId(), cat: 'live', title: '直播·引导互动',
-      content: '刚才这段[内容]你觉得怎么样？\n喜欢的家人扣个"1"，想看更多的扣"2"～\n弹幕里我看到有朋友问[问题]，特别好，我来展开说说...'
-    },
-  ]);
-
-  // 即兴练习题库
-  DB.set('improvQuestions', [
-    '30秒介绍我的工作台',
-    '用1分钟向一个小朋友解释"什么是京剧"',
-    '即兴讲述：如果我有超能力，我想...',
-    '30秒说服别人读一本你最爱的书',
-    '用1分钟描述你理想中的一天',
-    '即兴：向投资人介绍你的自媒体账号',
-    '30秒讲一个让你感动的小故事',
-    '用1分钟解释"为什么存钱很重要"',
-    '即兴：夸夸你身边最亲近的人',
-    '30秒描述你最喜欢的一句诗/词',
-    '用1分钟说服孩子学一门传统艺术',
-    '即兴：如果明天是世界末日，今天做什么',
-    '30秒介绍一个你最喜欢的京剧角色',
-    '用1分钟讲"我为什么做自媒体"',
-    '即兴：向陌生人推荐你的城市',
-  ]);
-
-  // 复盘录音
-  DB.set('speechRecords', []);
-
-  // 即兴练习完成记录
-  DB.set('improvDone', {});
-
-  // 连续打卡
-  DB.set('streak', 7);
-}
-
-// ---------- 导航 ----------
-function initNav() {
-  $$('.nav-item').forEach(nav => {
-    nav.addEventListener('click', (e) => {
-      e.preventDefault();
-      const page = nav.dataset.page;
-      switchPage(page);
-    });
-  });
-}
-
-function switchPage(page) {
-  $$('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
-  $$('.page').forEach(p => p.classList.toggle('active', p.id === `page-${page}`));
-  // 更新 hash
-  location.hash = page;
-  window.scrollTo(0, 0);
-  // 页面特定刷新
-  if (page === 'sport')  renderSport();
-  if (page === 'finance') renderFinance();
-  if (page === 'read')   renderRead();
-  if (page === 'habit')  renderHabit();
-  if (page === 'mood')   renderMood();
-  if (page === 'news')   renderNews();
-  if (page === 'media')  renderMedia();
-  if (page === 'growth') renderGrowth();
-  if (page === 'review') renderReview();
-  if (page === 'plan')   renderPlan();
-  if (page === 'speech') renderSpeech();
-}
-
-// ---------- 首页渲染 ----------
-const ENCOURAGES = [
-  '每一天的努力，都在悄悄开花 🌸',
-  '温柔地坚持，比用力更重要 💕',
-  '你比自己想象的更强大 🌟',
-  '慢慢来，比较快 🍃',
-  '今天也是闪闪发光的一天 ✨',
-  '小步快跑，日日精进 🏃‍♀️',
-  '生活不会亏待认真的人 🎁',
-  '你正在成为更好的自己 🦋',
-];
-
-const QUOTES = [
-  '生活不是等待暴风雨过去，而是学会在雨中跳舞。',
-  '星光不问赶路人，时光不负有心人。',
-  '每一个不曾起舞的日子，都是对生命的辜负。',
-  '温柔半两，从容一生。',
-  '你要悄悄拔尖，然后惊艳所有人。',
-  '今天也要元气满满鸭！',
-  '人生没有白走的路，每一步都算数。',
-  '保持热爱，奔赴山海。',
-];
-
-function getDayGreeting() {
-  const h = new Date().getHours();
-  if (h < 6)  return '凌晨好，注意休息呀';
-  if (h < 9)  return '早上好，新的一天开始啦';
-  if (h < 12) return '上午好，元气满满';
-  if (h < 14) return '中午好，记得吃饭哦';
-  if (h < 18) return '下午好，继续加油';
-  if (h < 22) return '晚上好，辛苦啦';
-  return '夜深了，早点休息吧';
-}
-
-function renderHome() {
-  // 日期
-  const d = new Date();
-  const dateStr = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 星期${weekDays[d.getDay()]}`;
-  $('#dateText').textContent = dateStr;
-  $('#helloText').textContent = `${getDayGreeting()} 🌷`;
-
-  // 鼓励语
-  const idx = d.getDate() % ENCOURAGES.length;
-  $('#encourageText').textContent = ENCOURAGES[idx];
-
-  // 连续打卡
-  const streak = DB.get('streak', 0);
-  $('#streakNum').textContent = streak;
-
-  // 进度
-  const tasks = DB.get('tasks', []).filter(t => t.date === today());
-  const doneCount = tasks.filter(t => t.done).length;
-  const totalCount = tasks.length || 1;
-  const pct = Math.round(doneCount / totalCount * 100);
-  $('#progressPercent').textContent = pct + '%';
-  $('#progressBarFill').style.width = pct + '%';
-  $('#progressHint').textContent = tasks.length === 0
-    ? '还没有任务哦，去计划页添加吧~'
-    : `已完成 ${doneCount}/${totalCount} 项任务`;
-
-  // 三件事
-  renderThreeThings();
-
-  // 时间轴
-  renderTimeline();
-
-  // 快捷打卡
-  renderQuickCheck();
-
-  // 每周摘要
-  renderWeeklyStats();
-
-  // 鼓励语
-  const qIdx = d.getDate() % QUOTES.length;
-  $('#quoteText').textContent = QUOTES[qIdx];
-}
-
-function renderThreeThings() {
-  const items = DB.get('threeThings', []);
-  const list = $('#threeThingsList');
-  list.innerHTML = items.map(item => `
-    <div class="three-item ${item.done?'done':''}" data-id="${item.id}">
-      <div class="three-check ${item.done?'done':''}" data-action="toggle-three" data-id="${item.id}"></div>
-      <div class="three-priority ${item.priority||'mid'}"></div>
-      <span class="three-text">${item.text}</span>
-      <button class="three-delete" data-action="del-three" data-id="${item.id}">🗑️</button>
-    </div>
-  `).join('') || '<p class="empty-state-text">还没有设置三件事哦~</p>';
-
-  // 绑定事件
-  list.querySelectorAll('[data-action="toggle-three"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = el.dataset.id;
-      const arr = DB.get('threeThings', []);
-      const item = arr.find(t => t.id === id);
-      if (item) { item.done = !item.done; DB.set('threeThings', arr); renderThreeThings(); }
-    });
-  });
-  list.querySelectorAll('[data-action="del-three"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = el.dataset.id;
-      DB.set('threeThings', DB.get('threeThings', []).filter(t => t.id !== id));
-      renderThreeThings();
-    });
-  });
-}
-
-// 固定行程
-const FIXED_ROUTINE = [
-  { time: '05:15', name: '读书（共读）', tag: '学习' },
-  { time: '06:40', name: '敲胆经（站立，八段锦）', tag: '健康' },
-  { time: '13:00', name: '做脸/美容', tag: '生活' },
-  { time: '17:00', name: '练字', tag: '成长' },
-  { time: '20:00', name: '呼啦圈力量训练', tag: '健康' },
-];
-
-function renderTimeline() {
-  const tasks = DB.get('tasks', []).filter(t => t.date === today()).sort((a,b) => (a.time||'').localeCompare(b.time||''));
-  const all = [...FIXED_ROUTINE.map(r => ({...r, fixed: true})), ...tasks.map(t => ({...t, fixed: false}))];
-  all.sort((a,b) => (a.time||'').localeCompare(b.time||''));
-
-  $('#timelineList').innerHTML = all.length ? all.map(item => `
-    <div class="timeline-item">
-      <span class="timeline-time">${item.time}</span>
-      <div class="timeline-dot ${item.done?'done':''}"></div>
-      <div class="timeline-content ${item.done?'done':''}">
-        <div class="tl-title">${item.name}</div>
-        <div class="tl-cat">${item.tag || catLabel(item.cat)} ${item.fixed?'· 固定':''}</div>
-      </div>
-    </div>
-  `).join('') : '<p class="empty-state-text">今天还没有安排哦~</p>';
-}
-
-function catLabel(cat) {
-  return { work:'工作', study:'学习', life:'生活', health:'健康', growth:'成长' }[cat] || '';
-}
-
-function renderQuickCheck() {
-  const habits = DB.get('habits', []);
-  const todayKey = today();
-  const quickItems = [
-    { key: 'read', label: '阅读', icon: '📖' },
-    { key: 'save', label: '存钱', icon: '💰' },
-    { key: 'water', label: '饮水', icon: '💧' },
-    { key: 'sport', label: '运动', icon: '🏃' },
-    { key: 'speech', label: '口才', icon: '🗣️' },
-    { key: 'meditate', label: '冥想', icon: '🧘' },
-    { key: 'early', label: '早起', icon: '☀️' },
-    { key: 'gratitude', label: '感恩', icon: '🙏' },
-  ];
-
-  $('#quickGrid').innerHTML = quickItems.map(q => {
-    const checked = DB.get(`quick_${q.key}_${todayKey}`, false);
-    return `
-      <div class="quick-btn ${checked?'checked':''}" data-key="${q.key}">
-        <span class="quick-icon">${q.icon}</span>
-        <span class="quick-label">${q.label}</span>
-      </div>
-    `;
-  }).join('');
-
-  $$('.quick-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const key = btn.dataset.key;
-      if (key === 'speech') { switchPage('speech'); return; }
-      const storageKey = `quick_${key}_${todayKey}`;
-      const now = !DB.get(storageKey, false);
-      DB.set(storageKey, now);
-      btn.classList.toggle('checked', now);
-      if (now) {
-        confettiBurst(btn.offsetLeft + 30, btn.offsetTop + 20);
-        showToast(`${btn.querySelector('.quick-label').textContent}打卡成功！`);
-      }
-    });
-  });
-}
-
-function renderWeeklyStats() {
-  const tasks = DB.get('tasks', []);
-  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekTasks = tasks.filter(t => new Date(t.date) >= weekStart);
-  const doneTasks = weekTasks.filter(t => t.done).length;
-
-  const sports = DB.get('sports', []);
-  const weekSports = sports.filter(s => new Date(s.date) >= weekStart);
-  const sportTimes = weekSports.length;
-  const sportMins = weekSports.reduce((s,r) => s + (r.duration||0), 0);
-
-  const books = DB.get('books', []);
-  const readingBooks = books.filter(b => b.status === 'reading').length;
-
-  const moods = DB.get('moods', {});
-  const weekMoods = Object.keys(moods).filter(d => new Date(d) >= weekStart);
-
-  const improvDone = DB.get('improvDone', {});
-  const weekImprov = Object.keys(improvDone).filter(d => new Date(d) >= weekStart).length;
-  const speechRecs = DB.get('speechRecords', []).filter(r => new Date(r.date) >= weekStart).length;
-
-  $('#weeklyStats').innerHTML = `
-    <div class="weekly-item"><span class="weekly-num peach">${doneTasks}</span><span class="weekly-label">完成任务</span></div>
-    <div class="weekly-item"><span class="weekly-num mint">${sportTimes}</span><span class="weekly-label">运动次数</span></div>
-    <div class="weekly-item"><span class="weekly-num lavender">${weekImprov}</span><span class="weekly-label">口才练习</span></div>
-    <div class="weekly-item"><span class="weekly-num pink">${weekMoods.length}</span><span class="weekly-label">记录心情</span></div>
-  `;
-}
-
-// ---------- 每日计划页 ----------
-function renderPlan() {
-  const filter = DB.get('taskFilter', 'all');
-  $$('.task-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === filter));
-
-  const tasks = DB.get('tasks', []).filter(t => t.date === today());
-  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.cat === filter);
-  const sorted = filtered.sort((a,b) => (a.time||'').localeCompare(b.time||''));
-
-  $('#taskList').innerHTML = sorted.length ? sorted.map(t => `
-    <div class="task-item ${t.done?'done':''}" data-id="${t.id}">
-      <div class="task-check ${t.done?'done':''}" data-action="toggle-task" data-id="${t.id}"></div>
-      <span class="task-cat-icon">${catIcon(t.cat)}</span>
-      <div class="task-body">
-        <div class="task-name">${t.name}</div>
-        <div class="task-meta">${t.time||'未设时间'} · ${catLabel(t.cat)} · ${priLabel(t.priority)}</div>
-      </div>
-      <div class="task-actions">
-        <button class="task-edit" data-action="edit-task" data-id="${t.id}">✏️</button>
-        <button class="task-del" data-action="del-task" data-id="${t.id}">🗑️</button>
-      </div>
-    </div>
-  `).join('') : '<p class="empty-state-text">暂无任务，点击右上角添加~</p>';
-
-  // 完成率
-  const total = tasks.length || 1;
-  const done = tasks.filter(t => t.done).length;
-  const pct = Math.round(done / total * 100);
-  const circle = $('#completionCircle');
-  if (circle) {
-    const C = 2 * Math.PI * 50;
-    circle.style.strokeDasharray = C;
-    circle.style.strokeDashoffset = C * (1 - pct/100);
-    // gradient
-    if (!document.getElementById('gradient')) {
-      const svg = circle.closest('svg');
-      const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-      defs.innerHTML = `<linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" style="stop-color:#FFB088"/>
-        <stop offset="100%" style="stop-color:#D4C5F9"/>
-      </linearGradient>`;
-      svg.insertBefore(defs, svg.firstChild);
+  // ---------- 引导页 ----------
+  function checkGuide() {
+    if (!get("guided", false)) {
+      $("#guide-overlay").style.display = "flex";
     }
   }
-  const ct = $('#completionText'); if (ct) ct.textContent = pct + '%';
-
-  // 绑定事件
-  $$('[data-action="toggle-task"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = el.dataset.id;
-      const arr = DB.get('tasks', []);
-      const t = arr.find(x => x.id === id);
-      if (t) { t.done = !t.done; DB.set('tasks', arr); renderPlan(); renderHome(); }
-    });
-  });
-  $$('[data-action="del-task"]').forEach(el => {
-    el.addEventListener('click', () => {
-      const id = el.dataset.id;
-      DB.set('tasks', DB.get('tasks', []).filter(t => t.id !== id));
-      renderPlan(); renderHome();
-    });
-  });
-
-  // 固定行程
-  $('#routineList').innerHTML = FIXED_ROUTINE.map(r => `
-    <div class="routine-item">
-      <span class="routine-time">${r.time}</span>
-      <span class="routine-name">${r.name}</span>
-      <span class="routine-tag">${r.tag}</span>
-    </div>
-  `).join('');
-}
-
-function catIcon(cat) {
-  return { work:'💼', study:'📖', life:'🏠', health:'💪', growth:'🌱' }[cat] || '📌';
-}
-function priLabel(p) {
-  return { high:'🔴 高', mid:'🟡 中', low:'🟢 低' }[p] || '';
-}
-
-// 任务标签筛选
-$$('.task-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    DB.set('taskFilter', tab.dataset.filter);
-    renderPlan();
-  });
-});
-
-// 添加任务模态框
-$('#addTaskBtn').addEventListener('click', () => {
-  $('#taskModal').classList.add('active');
-  $('#modalTaskName').value = '';
-  $('#modalTaskTime').value = '';
-  $('#modalTaskNote').value = '';
-  $('#modalTaskCat').value = 'work';
-  $('#modalTaskPriority').value = 'mid';
-});
-$('#cancelTaskBtn').addEventListener('click', () => $('#taskModal').classList.remove('active'));
-$('#confirmTaskBtn').addEventListener('click', () => {
-  const name = $('#modalTaskName').value.trim();
-  if (!name) { showToast('请输入任务名称'); return; }
-  const task = {
-    id: randomId(),
-    name,
-    time: $('#modalTaskTime').value,
-    cat: $('#modalTaskCat').value,
-    priority: $('#modalTaskPriority').value,
-    note: $('#modalTaskNote').value,
-    done: false,
-    date: today()
+  window.closeGuide = function () {
+    $("#guide-overlay").style.display = "none";
+    set("guided", true);
+    // 引导第一件事
+    const top3 = get("top3", []);
+    if (top3.length === 0) {
+      const item = prompt("先选今天最重要的一件事吧（一句话）：", "读 30 分钟书");
+      if (item) {
+        set("top3", [{ text: item, done: false, date: todayKey() }]);
+        renderTop3();
+      }
+    }
   };
-  const arr = DB.get('tasks', []);
-  arr.push(task);
-  DB.set('tasks', arr);
-  $('#taskModal').classList.remove('active');
-  renderPlan(); renderHome();
-  showToast('任务已添加 ✨');
-});
 
-// 添加三件事
-$('#addThreeBtn').addEventListener('click', () => {
-  const text = prompt('输入一件重要的事：');
-  if (text && text.trim()) {
-    const arr = DB.get('threeThings', []);
-    arr.push({ id: randomId(), text: text.trim(), priority: 'mid', done: false });
-    DB.set('threeThings', arr);
-    renderThreeThings();
+  // ---------- 鼓励语 ----------
+  const ENCOURAGEMENTS = [
+    "✨ 你比昨天更靠近梦想了。",
+    "🌊 慢慢来，水流自有它的方向。",
+    "🍃 不急，你已经做得很好了。",
+    "💧 一滴水也能映出整片天空。",
+    "🌸 今天照顾好自己，就是最大的成就。",
+    "🐚 安静地坚持，比喧哗更有力量。",
+    "🌿 每一小步，都是对自己的温柔承诺。",
+    "🪷 像水一样，柔软但有方向。",
+    "🌙 今天也辛苦了，允许自己休息。",
+    "🍀 你已经走在路上了，别怕慢。",
+    "🌊 潮汐有涨落，你也有节奏。",
+    "🫧 不必完美，只要真实。",
+    "🌸 今天值得被好好对待。",
+    "💎 小小的坚持，会积成光。",
+    "🧭 没有白走的路，每一步都算数。",
+  ];
+  function refreshEncouragement() {
+    $("#encouragement-text").textContent = rand(ENCOURAGEMENTS);
   }
-});
 
-// 换鼓励语
-$('#refreshQuote').addEventListener('click', () => {
-  const d = new Date();
-  const idx = Math.floor(Math.random() * QUOTES.length);
-  $('#quoteText').textContent = QUOTES[idx];
-  showToast('换了一句新的~');
-});
+  // ---------- 黄历宜忌（2026 简化版，按月规律生成） ----------
+  // 用确定性算法：根据日期算宜忌，保证可复现
+  const YI_POOL = [
+    "祭祀", "祈福", "嫁娶", "出行", "移徙", "入宅", "开市", "交易",
+    "立券", "纳财", "牧养", "放水", "修造", "动土", "安门", "作灶",
+    "安床", "沐浴", "剃头", "栽种", "捕捉", "纳采", "订盟", "会亲友",
+    "求医", "赴任", "上官", "入学", "竖柱", "上梁", "破土", "安葬"
+  ];
+  const JI_POOL = [
+    "动土", "破土", "安葬", "伐木", "修造", "安门", "作灶",
+    "出行", "嫁娶", "入宅", "开市", "交易", "立券", "纳财",
+    "栽种", "捕捉", "沐浴", "剃头", "赴任", "上官", "入学",
+    "竖柱", "上梁", "祭祀", "祈福", "纳采", "订盟"
+  ];
+  function hashDate(d) {
+    const s = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+    let h = 0;
+    for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return h;
+  }
+  function toLunar(d) {
+    // 简化农历近似：仅用于显示，不保证精确闰月
+    const lunarMonths = [29, 30, 29, 30, 29, 30, 29, 30, 29, 30, 29, 30];
+    const base = new Date(2026, 0, 1);
+    const diff = Math.floor((d - base) / 86400000);
+    let day = diff + 12; // 2026-1-1 近似冬月廿三
+    let month = 11;
+    while (day > lunarMonths[month % 12]) {
+      day -= lunarMonths[month % 12];
+      month++;
+    }
+    const GAN = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+    const ZHI = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"];
+    const gan = GAN[(d.getFullYear() - 4) % 10];
+    const zhi = ZHI[(d.getFullYear() - 4) % 12];
+    return { month: (month % 12) + 1, day, ganZhi: gan + zhi + "年" };
+  }
+  function renderAlmanac() {
+    const d = now();
+    const h = hashDate(d);
+    const yi = [], ji = [];
+    for (let i = 0; i < 5; i++) yi.push(YI_POOL[(h >> i) % YI_POOL.length]);
+    for (let i = 0; i < 4; i++) ji.push(JI_POOL[(h >> (i + 5)) % JI_POOL.length]);
+    // 方位
+    const DIRS = ["正东", "东南", "正南", "西南", "正西", "西北", "正北", "东北"];
+    const喜 = DIRS[(h >> 2) % 8];
+    const财 = DIRS[(h >> 4) % 8];
+    const lunar = toLunar(d);
+    const html = `
+      <span class="almanac-date">${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 · 农历${lunar.ganZhi} ${lunar.month}月${lunar.day}日</span>
+      <span class="almanac-suitable">宜 ${yi.join(" · ")}</span>
+      <span class="almanac-avoid">忌 ${ji.join(" · ")}</span>
+      <span class="almanac-date">喜神${喜} 财神${财}</span>
+    `;
+    $("#almanac-bar").innerHTML = html;
+    // 联动建议
+    const suggestion = $("#guide-question");
+    if (suggestion) {
+      if (yi.includes("出行")) suggestion.textContent = "今天宜出行，要不要把室外的事排在前面？";
+      else if (ji.includes("出行")) suggestion.textContent = "今天宜宅家，适合读书、整理、静修。";
+      else if (yi.includes("会亲友")) suggestion.textContent = "今天宜会亲友，要不要约一个人喝杯茶？";
+      else if (yi.includes("求医")) suggestion.textContent = "今天宜关注身体，安排一次检查或早休息。";
+      else suggestion.textContent = "今天慢慢来，先做那一件最重要的事。";
+    }
+  }
 
-// ---------- 运动页 ----------
-function renderSport() {
-  // 体重图表
-  const weights = DB.get('weight', []);
-  drawWeightChart(weights);
+  // ---------- 生日提醒 ----------
+  function checkBirthdays() {
+    const list = get("birthdays", []);
+    if (list.length === 0) return;
+    const today = now();
+    let nearest = null;
+    for (const b of list) {
+      const bd = new Date(b.date);
+      const thisYear = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+      const diff = Math.ceil((thisYear - today) / 86400000);
+      const adv = b.advanceDays || 3;
+      if (diff >= 0 && diff <= adv) {
+        if (!nearest || diff < nearest.diff) nearest = { ...b, diff };
+      }
+    }
+    const bar = $("#birthday-bar");
+    if (nearest) {
+      const d = nearest.diff;
+      let txt = "";
+      if (d === 0) txt = `🎂 今天是${nearest.name}的生日，别忘了说一句生日快乐 💐`;
+      else txt = `🎂 ${nearest.name}的生日还有 ${d} 天，可以提前准备礼物或问候 💐`;
+      bar.innerHTML = `<span>${txt}</span> <button onclick="promptBirthdayMessage('${nearest.name}')" class="btn-small btn-primary">写一句</button>`;
+      bar.style.display = "flex";
+    } else {
+      bar.style.display = "none";
+    }
+  }
+  window.promptBirthdayMessage = function (name) {
+    const msg = prompt(`想对${name}说一句什么？`, `生日快乐，愿你被温柔以待 🎂`);
+    if (msg) {
+      const msgs = get("birthday-messages", []);
+      msgs.push({ name, msg, date: todayKey() });
+      set("birthday-messages", msgs);
+      alert("已保存，等那天发出去吧 💐");
+    }
+  };
+  window.openBirthdayPanel = function () {
+    renderBirthdayList();
+    $("#birthday-modal").style.display = "flex";
+  };
+  window.closeBirthdayPanel = function () {
+    $("#birthday-modal").style.display = "none";
+  };
+  window.addBirthday = function () {
+    const name = $("#bd-name").value.trim();
+    const date = $("#bd-date").value;
+    const calType = $("#bd-calendar-type").value;
+    const adv = parseInt($("#bd-advance").value) || 3;
+    if (!name || !date) return alert("请填写姓名和日期");
+    const list = get("birthdays", []);
+    list.push({ name, date, calType, advanceDays: adv });
+    set("birthdays", list);
+    renderBirthdayList();
+    checkBirthdays();
+    $("#bd-name").value = "";
+    $("#bd-date").value = "";
+  };
+  function renderBirthdayList() {
+    const list = get("birthdays", []);
+    const today = now();
+    const html = list.map((b, i) => {
+      const bd = new Date(b.date);
+      const thisYear = new Date(today.getFullYear(), bd.getMonth(), bd.getDate());
+      const diff = Math.ceil((thisYear - today) / 86400000);
+      const dTxt = diff === 0 ? "🎂 今天！" : diff > 0 ? `还有 ${diff} 天` : `已过 ${Math.abs(diff)} 天`;
+      return `<div class="birthday-item"><span>${b.name} · ${b.date}${b.calType === "lunar" ? "(农历)" : ""}</span><span class="${diff <= b.advanceDays && diff >= 0 ? "days-left" : ""}">${dTxt}</span><button onclick="delBirthday(${i})" class="btn-close">✕</button></div>`;
+    }).join("");
+    $("#birthday-list").innerHTML = html || '<p style="font-size:13px;color:var(--text-light)">还没有添加生日，点下面添加吧。</p>';
+  }
+  window.delBirthday = function (i) {
+    const list = get("birthdays", []);
+    list.splice(i, 1);
+    set("birthdays", list);
+    renderBirthdayList();
+    checkBirthdays();
+  };
 
-  // 统计
-  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekSports = DB.get('sports', []).filter(s => new Date(s.date) >= weekStart);
-  $('#weekSportTimes').textContent = weekSports.length;
-  $('#weekSportMinutes').textContent = weekSports.reduce((s,r) => s + (r.duration||0), 0);
-
-  // 连续天数
-  const sports = DB.get('sports', []);
-  let streak = 0;
-  let check = today();
-  while (sports.some(s => s.date === check)) { streak++; check = new Date(new Date(check).getTime()-86400000).toISOString().slice(0,10); }
-  $('#sportStreak').textContent = streak;
-
-  // 日历
-  renderSportCalendar(sports);
-
-  // 列表
-  const list = sports.slice(-10).reverse();
-  $('#sportList').innerHTML = list.length ? list.map(s => `
-    <div class="sport-record">
-      <span class="sport-record-type">${sportIcon(s.type)}</span>
-      <div class="sport-record-info">
-        <div class="sport-record-name">${s.type} · ${s.duration}分钟</div>
-        <div class="sport-record-detail">${s.calories} kcal · ${s.feeling} · ${fmt(s.date)}</div>
-      </div>
-      <button class="sport-record-del" data-id="${s.id}">🗑️</button>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有运动记录~</p>';
-
-  $$('.sport-record-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      DB.set('sports', DB.get('sports', []).filter(s => s.id !== id));
-      renderSport();
+  // ---------- 底部导航 ----------
+  $$(".nav-item").forEach(btn => {
+    btn.addEventListener("click", () => {
+      $$(".nav-item").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const page = btn.dataset.page;
+      $$(".page").forEach(p => p.classList.remove("active"));
+      $("#page-" + page).classList.add("active");
+      if (page === "home") { renderTop3(); renderTimeline(); renderMonthlySummary(); }
+      if (page === "plan") { renderTasks(); renderHabits(); }
+      if (page === "finance") { renderFinance(); renderSavingGoals(); renderTuition(); }
+      if (page === "health") { renderWeightChart(); renderMoodChart(); renderSportCalendar(); }
+      if (page === "review") { renderReviewMonthOptions(); renderLatestReview(); }
+      if (page === "hot") renderHot();
     });
   });
-}
 
-function sportIcon(type) {
-  return { '跑步':'🏃','散步':'🚶','瑜伽':'🧘','力量训练':'💪','骑行':'🚴','呼啦圈':'🌀','八段锦':'🥋' }[type] || '✨';
-}
+  // ---------- 今日三件事 ----------
+  function renderTop3() {
+    const list = get("top3", []);
+    const today = todayKey();
+    // 自动重置非今天的
+    const filtered = list.filter(t => t.date === today);
+    set("top3", filtered);
+    const html = filtered.map((t, i) => `
+      <li>
+        <div class="check ${t.done ? "done" : ""}" onclick="toggleTop3(${i})"></div>
+        <span class="text ${t.done ? "done" : ""}">${t.text}</span>
+      </li>`).join("");
+    $("#top3-list").innerHTML = html || '<p style="font-size:13px;color:var(--text-light)">还没有添加，今天想完成哪三件事？</p>';
+    const done = filtered.filter(t => t.done).length;
+    $("#top3-progress").textContent = `${done}/${filtered.length || 3}`;
+  }
+  window.toggleTop3 = function (i) {
+    const list = get("top3", []);
+    list[i].done = !list[i].done;
+    set("top3", list);
+    renderTop3();
+  };
+  window.addTop3Item = function () {
+    const v = prompt("添加一件今天想做的事：", "");
+    if (!v) return;
+    const list = get("top3", []);
+    const today = todayKey();
+    list.push({ text: v, done: false, date: today });
+    set("top3", list);
+    renderTop3();
+  };
 
-function drawWeightChart(data) {
-  const canvas = $('#weightChart');
-  if (!canvas || !data.length) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.parentElement.clientWidth;
-  const h = 120;
-  canvas.width = w * dpr; canvas.height = h * dpr;
-  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0,0,w,h);
+  // ---------- 今日时间轴 ----------
+  function renderTimeline() {
+    const d = now();
+    const slots = [
+      { time: "05:15", text: "读书（共读）", key: "read" },
+      { time: "06:40", text: "敲胆经 + 八段锦", key: "exercise" },
+      { time: "13:00", text: "做脸/美容", key: "beauty" },
+      { time: "17:00", text: "练字", key: "write" },
+      { time: "20:00", text: "呼啦圈力量训练", key: "workout" },
+    ];
+    const checkins = get("checkins", {});
+    const today = todayKey();
+    const html = slots.map(s => {
+      const done = (checkins[today] || []).includes(s.key);
+      return `<div class="timeline-item ${done ? "done" : ""}">${s.time} ${s.text}</div>`;
+    }).join("");
+    $("#timeline").innerHTML = html;
+  }
 
-  const pad = 30;
-  const vals = data.map(d => parseFloat(d.weight));
-  const min = Math.min(...vals) - 1;
-  const max = Math.max(...vals) + 1;
-  const xStep = (w - pad*2) / (data.length - 1);
+  // ---------- 快捷打卡 ----------
+  window.quickCheckin = function (type) {
+    const today = todayKey();
+    const checkins = get("checkins", {});
+    const list = checkins[today] || [];
+    if (!list.includes(type)) list.push(type);
+    checkins[today] = list;
+    set("checkins", checkins);
+    // 按钮反馈
+    event.target.classList.add("done");
+    setTimeout(() => event.target.classList.remove("done"), 600);
+    renderTimeline();
+    renderMonthlySummary();
+    // 引导对话
+    const guide = $("#guide-question");
+    if (guide) {
+      const map = { "阅读": "读完了，要不要再来 10 分钟？", "喝水": "记得慢慢喝，别牛饮哦。", "存钱": "存下一笔，未来的你会感谢现在的你。", "运动": "动起来就赢了，做完记得拉伸。", "冥想": "深呼吸，把今天轻轻放下。" };
+      guide.textContent = map[type] || "完成得好，接下来做点让自己舒服的事吧。";
+    }
+  };
 
-  // 渐变填充
-  const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
-  grad.addColorStop(0, 'rgba(168,230,207,0.4)');
-  grad.addColorStop(1, 'rgba(168,230,207,0.02)');
+  // ---------- 番茄钟 ----------
+  let pomoTimer = null;
+  let pomoLeft = 0;
+  window.startPomodoro = function () {
+    pomoLeft = 25 * 60;
+    $("#pomo-time").textContent = "25:00";
+    $("#pomo-btn").textContent = "⏸ 暂停";
+    if (pomoTimer) clearInterval(pomoTimer);
+    pomoTimer = setInterval(() => {
+      pomoLeft--;
+      const m = pad(Math.floor(pomoLeft / 60));
+      const s = pad(pomoLeft % 60);
+      $("#pomo-time").textContent = `${m}:${s}`;
+      if (pomoLeft <= 0) {
+        clearInterval(pomoTimer);
+        pomoTimer = null;
+        $("#pomo-toast-text").textContent = "⏰ 专注结束，起来喝口水吧 💧";
+        $("#pomo-toast").style.display = "block";
+        setTimeout(() => $("#pomo-toast").style.display = "none", 4000);
+        $("#pomo-btn").textContent = "开始专注";
+      }
+    }, 1000);
+  };
 
-  // 曲线
-  ctx.beginPath();
-  data.forEach((d, i) => {
-    const x = pad + i * xStep;
-    const y = pad + (1 - (vals[i] - min)/(max-min)) * (h - pad*2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
-  ctx.lineTo(pad + (data.length-1)*xStep, h - pad);
-  ctx.lineTo(pad, h - pad);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  // ---------- 本月微摘要 ----------
+  function renderMonthlySummary() {
+    const mk = monthKey();
+    const all = get("checkins", {});
+    const tasks = get("tasks", []);
+    let doneCount = 0, totalCount = 0;
+    Object.keys(all).filter(k => k.startsWith(mk)).forEach(k => { doneCount += all[k].length; });
+    tasks.filter(t => t.date && t.date.startsWith(mk)).forEach(t => { totalCount++; if (t.done) doneCount++; });
+    const moods = get("moods", {});
+    let moodDays = 0;
+    Object.keys(moods).filter(k => k.startsWith(mk)).forEach(() => moodDays++);
+    const sport = get("sport", []);
+    const monthSport = sport.filter(s => (s.date || "").startsWith(mk));
+    const save = get("savings-log", []).filter(s => (s.date || "").startsWith(mk)).reduce((a, b) => a + (b.amount || 0), 0);
+    const html = `
+      <div class="summary-grid">
+        <div class="summary-item"><span class="label">打卡次数</span><span class="value">${doneCount}</span></div>
+        <div class="summary-item"><span class="label">运动时长</span><span class="value">${monthSport.reduce((a, b) => a + (b.duration || 0), 0)} 分</span></div>
+        <div class="summary-item"><span class="label">本月存钱</span><span class="value">¥${save}</span></div>
+        <div class="summary-item"><span class="label">心情记录</span><span class="value">${moodDays} 天</span></div>
+      </div>`;
+    $("#monthly-summary-content").innerHTML = html;
+  }
 
-  // 线条
-  ctx.beginPath();
-  data.forEach((d, i) => {
-    const x = pad + i * xStep;
-    const y = pad + (1 - (vals[i] - min)/(max-min)) * (h - pad*2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  });
-  ctx.strokeStyle = '#5BA88C';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
+  // ---------- 每周小憩（周日显示） ----------
+  function checkWeeklyRest() {
+    const d = now();
+    if (d.getDay() !== 0) return; // 仅周日
+    const last = get("last-rest-week", "");
+    const wk = `${d.getFullYear()}-W${Math.ceil(d.getDate() / 7)}`;
+    if (last === wk) return;
+    $("#weekly-rest-card").style.display = "block";
+  }
+  window.saveWeeklyRest = function () {
+    const d = now();
+    const wk = `${d.getFullYear()}-W${Math.ceil(d.getDate() / 7)}`;
+    set("last-rest-week", wk);
+    const rests = get("weekly-rests", []);
+    rests.push({ week: wk, happy: $("#rest-happy").value, next: $("#rest-next").value, self: $("#rest-self").value, date: todayKey() });
+    set("weekly-rests", rests);
+    $("#rest-happy").value = "";
+    $("#rest-next").value = "";
+    $("#rest-self").value = "";
+    $("#weekly-rest-card").style.display = "none";
+    alert("已保存，这周辛苦了 🌙");
+  };
 
-  // 点
-  data.forEach((d, i) => {
-    const x = pad + i * xStep;
-    const y = pad + (1 - (vals[i] - min)/(max-min)) * (h - pad*2);
+  // ---------- 计划/任务 ----------
+  window.addTask = function () {
+    const text = $("#new-task-input").value.trim();
+    const cat = $("#new-task-category").value;
+    if (!text) return;
+    const tasks = get("tasks", []);
+    tasks.push({ text, cat, done: false, date: todayKey() });
+    set("tasks", tasks);
+    $("#new-task-input").value = "";
+    renderTasks();
+  };
+  function renderTasks() {
+    const tasks = get("tasks", []);
+    const today = todayKey();
+    const todays = tasks.filter(t => t.date === today);
+    const html = todays.map((t, i) => `
+      <div class="task-item">
+        <div class="task-check ${t.done ? "done" : ""}" onclick="toggleTask(${tasks.indexOf(t)})"></div>
+        <span class="task-text ${t.done ? "done" : ""}">${t.text}</span>
+        <span class="task-cat">${t.cat}</span>
+        <button class="task-del" onclick="delTask(${tasks.indexOf(t)})">✕</button>
+      </div>`).join("");
+    $("#task-list").innerHTML = html || '<p style="font-size:13px;color:var(--text-light)">今日还没有任务，添加一个吧。</p>';
+    const done = todays.filter(t => t.done).length;
+    const rate = todays.length ? Math.round(done / todays.length * 100) : 0;
+    $("#task-completion-rate").textContent = rate + "%";
+  }
+  window.toggleTask = function (i) {
+    const tasks = get("tasks", []);
+    tasks[i].done = !tasks[i].done;
+    set("tasks", tasks);
+    renderTasks();
+  };
+  window.delTask = function (i) {
+    const tasks = get("tasks", []);
+    tasks.splice(i, 1);
+    set("tasks", tasks);
+    renderTasks();
+  };
+
+  // ---------- 习惯打卡 ----------
+  const DEFAULT_HABITS = ["早起喝水", "晨间阅读", "午后散步", "睡前拉伸", "记录心情"];
+  function renderHabits() {
+    let habits = get("habits", []);
+    if (habits.length === 0) { habits = DEFAULT_HABITS.map(n => ({ name: n })); set("habits", habits); }
+    const today = todayKey();
+    const checkins = get("checkins", {});
+    const list = checkins[today] || [];
+    const html = habits.map((h, i) => {
+      const done = list.includes("habit-" + i);
+      return `<div class="habit-item ${done ? "done" : ""}" onclick="toggleHabit(${i})">
+        <span class="habit-icon">${done ? "✅" : "⚪"}</span>
+        <span class="habit-name">${h.name}</span>
+      </div>`;
+    }).join("");
+    $("#habit-grid").innerHTML = html;
+  }
+  window.toggleHabit = function (i) {
+    const today = todayKey();
+    const checkins = get("checkins", {});
+    const list = checkins[today] || [];
+    const key = "habit-" + i;
+    if (list.includes(key)) list.splice(list.indexOf(key), 1);
+    else list.push(key);
+    checkins[today] = list;
+    set("checkins", checkins);
+    renderHabits();
+  };
+  window.addCustomHabit = function () {
+    const v = $("#new-habit-name").value.trim();
+    if (!v) return;
+    const habits = get("habits", []);
+    habits.push({ name: v });
+    set("habits", habits);
+    $("#new-habit-name").value = "";
+    renderHabits();
+  };
+
+  // ---------- 财务 ----------
+  window.saveIncome = function () {
+    const mk = monthKey();
+    const inc = get("income", {});
+    inc[mk] = {
+      salary: +$("#income-salary").value || 0,
+      performance: +$("#income-performance").value || 0,
+      bonus: +$("#income-bonus").value || 0,
+      other: +$("#income-other").value || 0,
+    };
+    set("income", inc);
+    renderFinance();
+  };
+  function addExpenseRow(name, amount) {
+    const exp = get("expenses", {});
+    const mk = monthKey();
+    if (!exp[mk]) exp[mk] = [];
+    exp[mk].push({ name: name || "其他", amount: amount || 0, date: todayKey() });
+    set("expenses", exp);
+    renderFinance();
+  }
+  window.addExpenseRow = function () {
+    const name = prompt("支出类别（如：餐饮/交通/教育/医疗）：", "餐饮");
+    if (!name) return;
+    const amount = +prompt("金额：", "0");
+    addExpenseRow(name, amount);
+  };
+  function renderFinance() {
+    const mk = monthKey();
+    const inc = get("income", {});
+    const cur = inc[mk] || { salary: 0, performance: 0, bonus: 0, other: 0 };
+    const totalInc = cur.salary + cur.performance + cur.bonus + cur.other;
+    const exp = get("expenses", {});
+    const curExp = exp[mk] || [];
+    const totalExp = curExp.reduce((a, b) => a + (b.amount || 0), 0);
+    const save = get("savings-log", []).filter(s => (s.date || "").startsWith(mk)).reduce((a, b) => a + (b.amount || 0), 0);
+    const balance = totalInc - totalExp - save;
+    $("#fin-income").textContent = "¥" + totalInc;
+    $("#fin-expense").textContent = "¥" + totalExp;
+    $("#fin-saving").textContent = "¥" + save;
+    $("#fin-balance").textContent = "¥" + balance;
+    // 支出明细
+    const expHtml = curExp.length ? curExp.map((e, i) => `<div class="expense-row"><label>${e.name}</label><input type="number" value="${e.amount}" onchange="updateExpense(${i},this.value)"/><button onclick="delExpense(${i})" class="btn-close">✕</button></div>`).join("") : '<p style="font-size:12px;color:var(--text-light)">本月暂无支出记录</p>';
+    $("#expense-rows").innerHTML = expHtml;
+  }
+  window.updateExpense = function (i, v) {
+    const mk = monthKey();
+    const exp = get("expenses", {});
+    if (exp[mk] && exp[mk][i]) { exp[mk][i].amount = +v; set("expenses", exp); renderFinance(); }
+  };
+  window.delExpense = function (i) {
+    const mk = monthKey();
+    const exp = get("expenses", {});
+    if (exp[mk]) { exp[mk].splice(i, 1); set("expenses", exp); renderFinance(); }
+  };
+
+  // ---------- 学费预存 ----------
+  const DEFAULT_TUITION = {
+    qb: [
+      { name: "骐宝学费-春季", amount: 24000 },
+      { name: "骐宝学费-秋季", amount: 17000 },
+      { name: "骐宝学费-兴趣", amount: 15000 },
+      { name: "骐宝学费-夏令营", amount: 4000 },
+      { name: "骐宝学费-冬令营", amount: 6000 },
+      { name: "骐宝学费-资料", amount: 12000 },
+      { name: "骐宝学费-其他", amount: 9000 },
+    ],
+    zy: [
+      { name: "知烨学费-春季", amount: 15000 },
+      { name: "知烨学费-资料", amount: 1000 },
+      { name: "知烨学费-兴趣", amount: 6000 },
+    ]
+  };
+  function getTuition() {
+    let t = get("tuition-items", null);
+    if (!t) { t = JSON.parse(JSON.stringify(DEFAULT_TUITION)); set("tuition-items", t); }
+    return t;
+  }
+  function renderTuition() {
+    const t = getTuition();
+    const qbTotal = t.qb.reduce((a, b) => a + b.amount, 0);
+    const zyTotal = t.zy.reduce((a, b) => a + b.amount, 0);
+    const total = qbTotal + zyTotal;
+    const log = get("tuition-log", []);
+    const saved = log.reduce((a, b) => a + (b.amount || 0), 0);
+    const pct = total ? Math.min(100, Math.round(saved / total * 100)) : 0;
+    $("#tuition-stream-fill").style.width = pct + "%";
+    $("#tuition-saved").textContent = "已存 ¥" + saved;
+    $("#tuition-target").textContent = "目标 ¥" + total;
+    $("#tuition-percent").textContent = pct + "%";
+    // 每月应存
+    const monthsLeft = Math.max(1, 12 - now().getMonth());
+    $("#tuition-monthly").textContent = "本月应存 ¥" + Math.round((total - saved) / monthsLeft);
+    // 明细
+    const qbHtml = t.qb.map((it, i) => `<div class="tuition-item-row"><label>${it.name}</label><input type="number" value="${it.amount}" onchange="updateTuition('qb',${i},this.value)"/></div>`).join("");
+    const zyHtml = t.zy.map((it, i) => `<div class="tuition-item-row"><label>${it.name}</label><input type="number" value="${it.amount}" onchange="updateTuition('zy',${i},this.value)"/></div>`).join("");
+    $("#tuition-qb-list").innerHTML = qbHtml || '<p style="font-size:12px;color:var(--text-light)">暂无</p>';
+    $("#tuition-zy-list").innerHTML = zyHtml || '<p style="font-size:12px;color:var(--text-light)">暂无</p>';
+    // 存入记录
+    const logHtml = log.slice(-10).reverse().map(l => `<div class="history-item"><span>${l.date} +¥${l.amount}</span><span style="color:var(--text-light)">${l.note || ""}</span></div>`).join("");
+    $("#tuition-history").innerHTML = logHtml || '<p style="font-size:12px;color:var(--text-light)">还没有存入记录</p>';
+  }
+  window.updateTuition = function (type, i, v) {
+    const t = getTuition();
+    t[type][i].amount = +v;
+    set("tuition-items", t);
+    renderTuition();
+  };
+  window.addTuitionItem = function (type) {
+    const name = prompt("项目名称：", "新项目");
+    if (!name) return;
+    const amount = +prompt("金额：", "0");
+    const t = getTuition();
+    t[type].push({ name, amount });
+    set("tuition-items", t);
+    renderTuition();
+  };
+  window.saveTuition = function () {
+    const amt = +$("#tuition-save-amount").value;
+    const note = $("#tuition-save-note").value.trim();
+    if (!amt) return alert("请输入金额");
+    const log = get("tuition-log", []);
+    log.push({ amount: amt, note, date: todayKey() });
+    set("tuition-log", log);
+    $("#tuition-save-amount").value = "";
+    $("#tuition-save-note").value = "";
+    renderTuition();
+  };
+
+  // ---------- 多目标存钱（水珠） ----------
+  const DEFAULT_GOALS = [
+    { name: "应急金", target: 20000, color: "emergency", saved: 0 },
+    { name: "旅游基金", target: 10000, color: "travel", saved: 0 },
+    { name: "学习基金", target: 5000, color: "study", saved: 0 },
+    { name: "心愿清单", target: 3000, color: "wish", saved: 0 },
+  ];
+  function getGoals() {
+    let g = get("saving-goals", null);
+    if (!g) { g = JSON.parse(JSON.stringify(DEFAULT_GOALS)); set("saving-goals", g); }
+    return g;
+  }
+  function renderSavingGoals() {
+    const goals = getGoals();
+    const log = get("savings-log", []);
+    // 重新计算 saved
+    goals.forEach(g => g.saved = 0);
+    log.forEach(l => {
+      if (l.goalName) {
+        const g = goals.find(x => x.name === l.goalName);
+        if (g) g.saved += (l.amount || 0);
+      }
+    });
+    set("saving-goals", goals);
+    const html = goals.map((g, i) => {
+      const pct = g.target ? Math.min(100, Math.round(g.saved / g.target * 100)) : 0;
+      const fillH = pct;
+      const waterHtml = `<div class="water-drop color-${g.color}"><div class="water-fill" style="height:${fillH}%"></div><span class="water-label">${pct}%</span></div>`;
+      return `<div class="saving-goal-item">
+        ${waterHtml}
+        <div class="saving-info">
+          <div class="saving-name">${g.name} <span style="font-size:11px;color:var(--text-light)">¥${g.saved}/${g.target}</span></div>
+          <div class="saving-progress">${g.name === "应急金" ? "温暖·安心" : g.name === "旅游基金" ? "远方在等" : g.name === "学习基金" ? "滋养·成长" : "期待·闪光"}</div>
+        </div>
+        <div class="saving-actions">
+          <button class="btn-save" onclick="openSaveGoal(${i})">存入</button>
+          <button class="btn-del" onclick="delGoal(${i})">删除</button>
+        </div>
+      </div>`;
+    }).join("");
+    $("#saving-goals-container").innerHTML = html;
+    // 存钱池合计
+    const totalSaved = goals.reduce((a, b) => a + b.saved, 0);
+    const totalTarget = goals.reduce((a, b) => a + b.target, 0);
+    const poolHtml = `<div class="savings-pool"><div class="savings-pool-label">💧 存钱池</div><div class="savings-pool-num">¥${totalSaved} / ¥${totalTarget}</div><div class="stream-bar"><div class="stream-fill" style="width:${totalTarget ? Math.round(totalSaved / totalTarget * 100) : 0}%"></div></div></div>`;
+    // 插入到容器下方
+    const existing = document.querySelector(".savings-pool");
+    if (existing) existing.remove();
+    $("#saving-goals-container").insertAdjacentHTML("afterend", poolHtml);
+  }
+  window.openSaveGoal = function (i) {
+    const goals = getGoals();
+    const amt = +prompt(`存入「${goals[i].name}」多少？`, "100");
+    if (!amt) return;
+    const note = prompt("备注（可选）：", "") || "";
+    const log = get("savings-log", []);
+    log.push({ amount: amt, note, goalName: goals[i].name, date: todayKey() });
+    set("savings-log", log);
+    renderSavingGoals();
+    renderFinance();
+  };
+  window.delGoal = function (i) {
+    if (!confirm("确定删除这个目标吗？")) return;
+    const goals = getGoals();
+    goals.splice(i, 1);
+    set("saving-goals", goals);
+    renderSavingGoals();
+  };
+  window.addSavingGoal = function () {
+    const name = prompt("目标名称：", "新目标");
+    if (!name) return;
+    const target = +prompt("目标金额：", "5000");
+    const color = prompt("颜色（emergency/travel/study/wish）：", "wish") || "wish";
+    const goals = getGoals();
+    goals.push({ name, target, color, saved: 0 });
+    set("saving-goals", goals);
+    renderSavingGoals();
+  };
+
+  // ---------- 运动/体重 ----------
+  window.saveWeight = function () {
+    const w = +$("#weight-input").value;
+    if (!w) return;
+    const ws = get("weights", []);
+    ws.push({ date: todayKey(), weight: w });
+    set("weights", ws);
+    $("#weight-input").value = "";
+    renderWeightChart();
+  };
+  window.saveSport = function () {
+    const type = $("#sport-type").value;
+    const dur = +$("#sport-duration").value || 0;
+    const cal = +$("#sport-calories").value || 0;
+    const feel = $("#sport-feeling").value.trim();
+    const sport = get("sport", []);
+    sport.push({ type, duration: dur, calories: cal, feeling: feel, date: todayKey() });
+    set("sport", sport);
+    $("#sport-duration").value = "";
+    $("#sport-calories").value = "";
+    $("#sport-feeling").value = "";
+    renderSportCalendar();
+  };
+  function renderWeightChart() {
+    const ws = get("weights", []);
+    const c = $("#weight-chart");
+    if (!c || ws.length < 2) return;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, c.width, c.height);
+    const max = Math.max(...ws.map(w => w.weight));
+    const min = Math.min(...ws.map(w => w.weight));
+    const range = (max - min) || 1;
+    const stepX = c.width / (ws.length - 1);
+    ctx.strokeStyle = "#6cb4d8";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI*2);
-    ctx.fillStyle = '#5BA88C';
-    ctx.fill();
-  });
-
-  // 最后值
-  const last = vals[vals.length-1];
-  const lx = pad + (data.length-1)*xStep;
-  const ly = pad + (1 - (last-min)/(max-min)) * (h - pad*2);
-  ctx.fillStyle = '#4A3F5C';
-  ctx.font = '12px system-ui';
-  ctx.fillText(last + 'kg', lx - 28, ly - 10);
-}
-
-function renderSportCalendar(sports) {
-  const cal = $('#sportCalendar');
-  const d = new Date();
-  const year = d.getFullYear(), month = d.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const sportDates = new Set(sports.map(s => s.date));
-
-  let html = '<div class="cal-header">';
-  weekDaysShort.forEach(w => html += `<div class="cal-day-header">${w}</div>`);
-  html += '</div>';
-
-  for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell empty"></div>';
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dt = new Date(year, month, day).toISOString().slice(0,10);
-    const isToday = dt === today();
-    const isSport = sportDates.has(dt);
-    html += `<div class="cal-cell ${isToday?'today':''} ${isSport?'sport-day':''}">${day}</div>`;
-  }
-  cal.innerHTML = html;
-}
-
-// 保存体重
-$('#saveWeightBtn').addEventListener('click', () => {
-  const v = parseFloat($('#weightInput').value);
-  if (!v || v < 20 || v > 200) { showToast('请输入有效体重(20-200kg)'); return; }
-  const arr = DB.get('weight', []);
-  arr.push({ date: today(), weight: v.toFixed(1) });
-  // 只保留30天
-  while (arr.length > 30) arr.shift();
-  DB.set('weight', arr);
-  $('#weightInput').value = '';
-  renderSport();
-  showToast('体重已记录 ⚖️');
-});
-
-// 保存运动
-$('#saveSportBtn').addEventListener('click', () => {
-  const type = $('#sportType').value;
-  const dur = parseInt($('#sportDuration').value);
-  const cal = parseInt($('#sportCalories').value) || 0;
-  const feeling = $('#sportFeeling').value;
-  if (!dur || dur <= 0) { showToast('请输入运动时长'); return; }
-  const arr = DB.get('sports', []);
-  arr.push({ id: randomId(), type, duration: dur, calories: cal, feeling, date: today() });
-  DB.set('sports', arr);
-  $('#sportDuration').value = '';
-  $('#sportCalories').value = '';
-  renderSport();
-  showToast('运动记录已保存 💪');
-  confettiBurst(window.innerWidth/2, 200);
-});
-
-// 运动目标
-$('#weeklyGoalTimes').addEventListener('change', () => showToast('目标已更新'));
-$('#weeklyGoalMinutes').addEventListener('change', () => showToast('目标已更新'));
-
-// ---------- 财务页 ----------
-function renderFinance() {
-  // 收入
-  const incomes = DB.get('incomes', []).filter(i => i.date.startsWith(today().slice(0,7)));
-  const total = incomes.reduce((s,i) => s + i.amount, 0);
-  $('#monthlyIncome').textContent = '¥' + total.toLocaleString();
-
-  // 学费
-  const tuitionItems = [
-    { name: '骐宝学费', items: [
-      { label: '学费1', amount: 24000 },
-      { label: '学费2', amount: 17000 },
-      { label: '学费3', amount: 15000 },
-      { label: '杂费1', amount: 4000 },
-      { label: '杂费2', amount: 6000 },
-      { label: '兴趣班', amount: 12000 },
-      { label: '夏令营', amount: 9000 },
-    ]},
-    { name: '知烨学费', items: [
-      { label: '学费', amount: 15000 },
-      { label: '教材', amount: 1000 },
-      { label: '活动', amount: 6000 },
-    ]},
-  ];
-  const tuitionTotal = tuitionItems.reduce((s,c) => s + c.items.reduce((a,b) => a+b.amount,0), 0);
-  const tuitionSaved = DB.get('savingGoals', []).find(g => g.name === '骐宝学费');
-  const saved = tuitionSaved ? tuitionSaved.saved : 0;
-  const tPct = Math.min(100, Math.round(saved / tuitionTotal * 100));
-  $('#tuitionTotal').textContent = '¥' + tuitionTotal.toLocaleString();
-  $('#tuitionSaved').textContent = '¥' + saved.toLocaleString();
-  $('#tuitionFill').style.width = tPct + '%';
-
-  // 明细
-  const detailOpen = $('#tuitionDetail').style.display !== 'none';
-  $('#toggleTuition').textContent = detailOpen ? '收起明细' : '展开明细';
-  let detailHtml = '';
-  tuitionItems.forEach(cat => {
-    detailHtml += `<div style="font-weight:600;margin-top:8px;color:var(--text-primary);font-size:0.85rem;">📌 ${cat.name}</div>`;
-    cat.items.forEach(item => {
-      detailHtml += `<div class="tuition-row"><span>${item.label}</span><span>¥${item.amount.toLocaleString()}</span></div>`;
+    ws.forEach((w, i) => {
+      const x = i * stepX;
+      const y = c.height - ((w.weight - min) / range) * (c.height - 30) - 10;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
-  });
-  detailHtml += `<div class="tuition-row"><span>合计</span><span>¥${tuitionTotal.toLocaleString()}</span></div>`;
-  detailHtml += `<div class="tuition-row"><span>月均（÷12）</span><span>¥${Math.round(tuitionTotal/12).toLocaleString()}/月</span></div>`;
-  $('#tuitionDetail').innerHTML = detailHtml;
+    ctx.stroke();
+    // 圆点
+    ctx.fillStyle = "#88c9d9";
+    ws.forEach((w, i) => {
+      const x = i * stepX;
+      const y = c.height - ((w.weight - min) / range) * (c.height - 30) - 10;
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  function renderSportCalendar() {
+    const today = now();
+    const sport = get("sport", []);
+    const mk = monthKey();
+    const monthSport = sport.filter(s => (s.date || "").startsWith(mk));
+    $("#week-sport-count").textContent = monthSport.length;
+    $("#week-sport-duration").textContent = monthSport.reduce((a, b) => a + (b.duration || 0), 0);
+    // 简易日历
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    let html = "";
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(d)}`;
+      const has = sport.some(s => s.date === key);
+      const isToday = key === todayKey();
+      html += `<div class="cal-day ${has ? "checked" : ""} ${isToday ? "today" : ""}">${d}</div>`;
+    }
+    $("#sport-calendar").innerHTML = html;
+  }
 
-  // 存钱目标
-  const goals = DB.get('savingGoals', []);
-  $('#savingGoals').innerHTML = goals.map(g => {
-    const pct = Math.min(100, Math.round(g.saved / g.target * 100));
-    return `
-      <div class="saving-goal-card">
-        <div class="sg-header">
-          <span class="sg-name"><span class="sg-icon">${g.icon}</span>${g.name}</span>
-          <span class="sg-amount">¥${g.saved.toLocaleString()} / ¥${g.target.toLocaleString()}</span>
-        </div>
-        <div class="sg-bar"><div class="sg-bar-fill" style="width:${pct}%;background:${g.color}"></div></div>
-        <div class="sg-footer">
-          <span>${pct}% 完成</span>
-          <span>剩余 ¥${(g.target - g.saved).toLocaleString()}</span>
-        </div>
-        <div class="sg-actions" style="margin-top:10px;">
-          <button class="sg-btn" data-action="add-save" data-id="${g.id}">＋ 存入</button>
-          <button class="sg-btn" data-action="edit-goal" data-id="${g.id}">✏️ 编辑</button>
-          <button class="sg-btn" data-action="del-goal" data-id="${g.id}">🗑️ 删除</button>
-        </div>
+  // ---------- 心情日记 ----------
+  let curMood = "";
+  window.selectMood = function (m) {
+    curMood = m;
+    $$(".mood-selector span").forEach(s => s.classList.remove("selected"));
+    event.target.classList.add("selected");
+  };
+  window.saveMood = function () {
+    const reason = $("#mood-reason").value.trim();
+    const grateful = $("#grateful-list").value.trim();
+    if (!curMood && !reason && !grateful) return;
+    const moods = get("moods", {});
+    moods[todayKey()] = { mood: curMood, reason, grateful, date: todayKey() };
+    set("moods", moods);
+    $("#mood-reason").value = "";
+    $("#grateful-list").value = "";
+    curMood = "";
+    $$(".mood-selector span").forEach(s => s.classList.remove("selected"));
+    renderMoodChart();
+    renderMonthlySummary();
+  };
+  function renderMoodChart() {
+    const moods = get("moods", {});
+    const keys = Object.keys(moods).sort().slice(-14);
+    const c = $("#mood-chart");
+    if (!c || keys.length < 2) return;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, c.width, c.height);
+    const stepX = c.width / (keys.length - 1);
+    const map = { "😄开心": 5, "😌平静": 4, "💪充实": 4.5, "😩疲惫": 2, "😰焦虑": 1.5, "😢难过": 1 };
+    ctx.strokeStyle = "#b8a9e0";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    keys.forEach((k, i) => {
+      const v = map[moods[k].mood] || 3;
+      const x = i * stepX;
+      const y = c.height - (v / 5) * (c.height - 20) - 5;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  // ---------- 精进：想法 → 四步分析 ----------
+  const KNOWLEDGE_BASE = {
+    "焦虑": "焦虑往往是「在乎」的侧面。试着把它翻译成具体的小行动：今天可以做一件让局面稍微可控的小事。",
+    "存钱": "存钱的本质不是牺牲，而是给未来的自己更多选择权。每存一笔，都是在为某个自由投票。",
+    "表达": "好的表达不是口若悬河，而是让对方感到被理解。先练习「复述对方的话」再回应。",
+    "健康": "身体的小信号别忽略。规律比强度重要，睡够、喝够、动起来，比任何补品都管用。",
+    "时间": "时间不够用，往往不是时间少，而是没给重要的事留固定位置。先守住 05:15 的读书时间。",
+    "学习": "学习不必苦大仇深。每天读 5 分钟，比一周突击 5 小时更可持续。",
+    "关系": "关系需要主动维护。一句「最近好吗」比一百个朋友圈点赞都暖。",
+    "育儿": "孩子不是你的作品，是独立的生命。陪他长大，而不是替他长大。",
+    "工作": "工作是为了更好地生活，不是反过来。下班后学会关上电脑，是种能力。",
+    "情绪": "情绪不是敌人，是信使。问问它想告诉你什么，而不是急着压下去。",
+  };
+  const ACTION_MAP = {
+    "焦虑": ["今晚睡前写下 3 件你担心的事，再写 1 件你可以控制的事", "明天先做那件可控的小事，完成它"],
+    "存钱": ["今晚算一笔账：本月已存多少，离目标差多少", "明天发工资后先转一笔到「应急金」"],
+    "表达": ["明天找一个机会，先复述对方的话再回应", "本周录一段 30 秒自我介绍，回听并改一版"],
+    "健康": ["明天早起先喝一杯温水", "本周安排 2 次 20 分钟散步"],
+    "时间": ["今晚给明天的 05:15 读书留出固定时段", "把手机通知关掉 1 小时试试"],
+    "学习": ["明天读 5 分钟英文短文并跟读", "本周背 3 个新单词，写进金句库"],
+    "关系": ["明天给一个好久没联系的人发一句问候", "本周约一次面对面喝茶"],
+    "育儿": ["今晚睡前和孩子说一句具体的肯定", "本周陪孩子做一件他提过想做的事"],
+    "工作": ["明天下班准时关电脑", "列出 3 件工作里想减少的事"],
+    "情绪": ["今晚写一句「我今天感觉…是因为…」", "明天情绪上来时先深呼吸 3 次再回应"],
+  };
+  const STYLES = {
+    "人民日报体": (s) => `「${s}」——看似平凡的日子，正因用心而闪光。每一份坚持，都在为未来铺路。`,
+    "网络金句体": (s) => `谁懂啊！${s} 这件事真的会让一整天都亮起来 ✨`,
+    "心灵鸡汤体": (s) => `亲爱的，如果你正在经历${s}，请相信：这是成长在敲门。温柔地对待自己，路会越走越宽。`,
+  };
+  window.analyzeReflection = function () {
+    const input = $("#reflection-input").value.trim();
+    if (!input) return alert("先写点什么吧，哪怕一句话。");
+    // 关键词匹配
+    let matchedKey = "情绪";
+    for (const k of Object.keys(KNOWLEDGE_BASE)) {
+      if (input.includes(k)) { matchedKey = k; break; }
+    }
+    // 概括
+    const summary = `你的想法核心是：「${input.slice(0, 40)}${input.length > 40 ? "…" : ""}」，这背后是你在意${matchedKey}。`;
+    // 金句三版
+    const s1 = STYLES["人民日报体"](matchedKey);
+    const s2 = STYLES["网络金句体"](matchedKey);
+    const s3 = STYLES["心灵鸡汤体"](matchedKey);
+    // 衍生
+    const derived = KNOWLEDGE_BASE[matchedKey];
+    // 行动
+    const actions = (ACTION_MAP[matchedKey] || ["先做一件小事", "写下明天的具体一步"]).map(a => `<li>${a}</li>`).join("");
+    const html = `
+      <div class="reflection-step"><h4>📝 概括整理</h4><p>${summary}</p></div>
+      <div class="reflection-step"><h4>✨ 金句风格总结</h4><p>📰 ${s1}</p><p>💬 ${s2}</p><p>🌸 ${s3}</p></div>
+      <div class="reflection-step"><h4>🌐 衍生思考</h4><p>${derived}</p></div>
+      <div class="reflection-step"><h4>🎯 明天就能做的行动</h4><ol>${actions}</ol></div>
+    `;
+    $("#reflection-result").innerHTML = html;
+    // 保存
+    const logs = get("reflection-logs", []);
+    logs.push({ input, output: html, date: todayKey(), time: now().toTimeString().slice(0, 5), key: matchedKey });
+    set("reflection-logs", logs);
+    $("#reflection-input").value = "";
+    renderReflectionHistory();
+  };
+  function renderReflectionHistory() {
+    const logs = get("reflection-logs", []);
+    const html = logs.slice(-5).reverse().map((l, i) => `
+      <div class="history-card">
+        <div class="date">${l.date} ${l.time} · ${l.key}</div>
+        <div class="summary">${l.input.slice(0, 60)}${l.input.length > 60 ? "…" : ""}</div>
+      </div>`).join("");
+    $("#reflection-history").innerHTML = html || '<p style="font-size:13px;color:var(--text-light)">还没有记录，写下第一笔吧。</p>';
+  }
+
+  // ---------- 热点（内置模板，手动刷新轮换） ----------
+  const HOT_FINANCE = [
+    { title: "央行年内第二次降准，释放长期资金约 1 万亿元", desc: "对普通人意味着房贷利率有望进一步下行，存款收益继续走低，理财配置需重新思考。" },
+    { title: "个人养老金制度全国铺开，每年最高抵税 5400 元", desc: "每年最多缴 1.2 万，可投基金/存款/保险，长期看是普通人少有的税优工具。" },
+    { title: "医保个人账户改革深化，家庭共济扩围", desc: "个人账户钱变少但统筹池变大，住院/门诊报销比例提升，对慢病家庭是利好。" },
+    { title: "多地提高最低工资标准，平均涨幅 5%-8%", desc: "低收入群体直接受益，但需关注物价与服务价格的联动。" },
+  ];
+  const HOT_AUDIT = [
+    { title: "国家医保局通报 2026 年第二批飞行检查结果", desc: "重点查处虚假住院、串换项目、过度检查，涉及 23 家机构被追回资金并处罚。" },
+    { title: "DRG/DIP 付费改革覆盖全国 90% 统筹区", desc: "按病种打包付费倒逼医院控成本，患者住院天数普遍缩短，但需警惕推诿重症。" },
+    { title: "医保智能监控系统上线，实时拦截可疑结算", desc: "AI 审核处方与收费明细，欺诈骗保识别率提升，合规机构反而更轻松。" },
+  ];
+  const HOT_GUIDE = [
+    { title: "《国家医保局 2026 版医疗服务价格项目指南》发布", desc: "统一项目名称与编码，理顺比价关系，护理、中医、儿科项目价格上调，大型检查降价。" },
+    { title: "新版立项指南新增「互联网+护理」「安宁疗护」项目", desc: "将居家护理、临终关怀纳入医保支付，回应老龄化刚需。" },
+    { title: "口腔种植费用专项治理落地，单颗均价降至 5000 元内", desc: "耗材集采+服务限价双管齐下，种植牙从「奢侈品」变「刚需品」。" },
+  ];
+  const HOT_CURATED = [
+    { title: "卫健委：将「睡眠健康」纳入基本公卫服务包", desc: "社区可开展睡眠筛查与干预，打鼾、失眠不再只是「个人问题」。" },
+    { title: "教育部推进「每天一节体育课」落地", desc: "小学到高中逐步配齐体育师资，孩子体质提升有了制度保障。" },
+    { title: "女性职业健康新规：孕期可申请远程办公", desc: "明确用人单位须为孕期女职工提供弹性工作选项，减少通勤与加班伤害。" },
+    { title: "长期护理保险试点扩至 60 城", desc: "失能老人居家护理可报销，家庭照护压力有望系统性缓解。" },
+  ];
+  function renderHot() {
+    const fi = HOT_FINANCE.map(h => `<div class="hot-item"><span class="hot-tag">财经</span><span class="hot-title">${h.title}</span><div class="hot-desc">${h.desc}</div></div>`).join("");
+    const au = HOT_AUDIT.map(h => `<div class="hot-item"><span class="hot-tag">稽核</span><span class="hot-title">${h.title}</span><div class="hot-desc">${h.desc}</div></div>`).join("");
+    const gu = HOT_GUIDE.map(h => `<div class="hot-item"><span class="hot-tag">立项</span><span class="hot-title">${h.title}</span><div class="hot-desc">${h.desc}</div></div>`).join("");
+    const cu = HOT_CURATED.map(h => `<div class="hot-item"><span class="hot-tag">精选</span><span class="hot-title">${h.title}</span><div class="hot-desc">${h.desc}</div></div>`).join("");
+    $("#hot-finance").innerHTML = fi;
+    $("#hot-medical-audit").innerHTML = au;
+    $("#hot-medical-guide").innerHTML = gu;
+    $("#hot-curated").innerHTML = cu;
+  }
+  window.refreshHot = function () {
+    HOT_FINANCE.reverse();
+    HOT_AUDIT.reverse();
+    HOT_GUIDE.reverse();
+    HOT_CURATED.reverse();
+    renderHot();
+  };
+
+  // ---------- 月度复盘（三封信） ----------
+  function renderReviewMonthOptions() {
+    const sel = $("#review-month-select");
+    if (sel.options.length > 0) return;
+    const cur = now();
+    for (let m = 0; m < 6; m++) {
+      const d = new Date(cur.getFullYear(), cur.getMonth() - m, 1);
+      const val = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      const opt = new Option(`${d.getFullYear()}年${d.getMonth() + 1}月`, val);
+      sel.add(opt);
+    }
+  }
+  window.generateMonthlyReview = function () {
+    const mk = $("#review-month-select").value || monthKey();
+    const [y, m] = mk.split("-").map(Number);
+    const all = get("checkins", {});
+    let checkinCount = 0;
+    Object.keys(all).filter(k => k.startsWith(mk)).forEach(k => checkinCount += all[k].length);
+    const tasks = get("tasks", []).filter(t => (t.date || "").startsWith(mk));
+    const doneTasks = tasks.filter(t => t.done).length;
+    const taskRate = tasks.length ? Math.round(doneTasks / tasks.length * 100) : 0;
+    const sport = get("sport", []).filter(s => (s.date || "").startsWith(mk));
+    const sportDur = sport.reduce((a, b) => a + (b.duration || 0), 0);
+    const moods = get("moods", {});
+    const moodDays = Object.keys(moods).filter(k => k.startsWith(mk)).length;
+    const weights = get("weights", []).filter(w => (w.date || "").startsWith(mk));
+    const inc = get("income", {});
+    const curInc = inc[mk] || { salary: 0, performance: 0, bonus: 0, other: 0 };
+    const totalInc = curInc.salary + curInc.performance + curInc.bonus + curInc.other;
+    const exp = get("expenses", {});
+    const curExp = exp[mk] || [];
+    const totalExp = curExp.reduce((a, b) => a + (b.amount || 0), 0);
+    const save = get("savings-log", []).filter(s => (s.date || "").startsWith(mk)).reduce((a, b) => a + (b.amount || 0), 0);
+    const balance = totalInc - totalExp - save;
+    const rests = get("weekly-rests", []).filter(r => r.week.startsWith(mk));
+    const monthName = `${y}年${m}月`;
+    const html = `
+      <div class="review-letter">
+        <h4>💌 给过去的自己</h4>
+        <p>${monthName}，你一共打卡 ${checkinCount} 次，完成任务 ${doneTasks}/${tasks.length}（完成率 ${taskRate}%），运动 ${sportDur} 分钟，记录了 ${moodDays} 天心情。</p>
+        <p>你在这个月启动了 WorkBuddy，把一些混乱慢慢收拢。不必追求完美，能坚持记录本身，就已经很了不起了。</p>
+      </div>
+      <div class="review-letter">
+        <h4>🌿 给现在的自己</h4>
+        <p>本月收入 ¥${totalInc}，支出 ¥${totalExp}，存钱 ¥${save}，结余 ¥${balance}。</p>
+        <p>${balance >= 0 ? "收支平衡，做得不错。可以把存钱的目标再往前推一推。" : "这个月有点紧，没关系，下个月调整一下支出结构就好。"}</p>
+        ${weights.length ? `<p>体重从 ${weights[0].weight} 到 ${weights[weights.length - 1].weight}，变化 ${(weights[weights.length - 1].weight - weights[0].weight).toFixed(1)} kg。</p>` : ""}
+      </div>
+      <div class="review-letter">
+        <h4>🌊 给下个月的自己</h4>
+        <p>想改善的三件事：</p>
+        <ol>
+          <li>${rests.length ? rests[rests.length - 1].next || "______" : "______"}</li>
+          <li>______</li>
+          <li>______</li>
+        </ol>
+        <p style="margin-top:8px;color:var(--text-light);font-size:13px;">不急，慢慢来。下个月，你只要比这个月多温柔一点点，就够了。</p>
+      </div>
+      <div class="review-grid">
+        <div class="summary-item"><span class="label">打卡</span><span class="value">${checkinCount}</span></div>
+        <div class="summary-item"><span class="label">任务完成率</span><span class="value">${taskRate}%</span></div>
+        <div class="summary-item"><span class="label">运动时长</span><span class="value">${sportDur}分</span></div>
+        <div class="summary-item"><span class="label">本月结余</span><span class="value">¥${balance}</span></div>
       </div>
     `;
-  }).join('') || '<p class="empty-state-text">还没有存钱目标，去添加吧~</p>';
-
-  // 绑定目标操作
-  $$('[data-action="add-save"]').forEach(btn => {
-    btn.addEventListener('click', () => openSavingModal(btn.dataset.id));
-  });
-  $$('[data-action="del-goal"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (confirm('确定删除这个目标吗？')) {
-        DB.set('savingGoals', DB.get('savingGoals', []).filter(g => g.id !== btn.dataset.id));
-        renderFinance();
-      }
-    });
-  });
-
-  // 存钱记录
-  const savings = DB.get('savings', []).slice(-10).reverse();
-  const goalsMap = {};
-  goals.forEach(g => goalsMap[g.id] = g);
-  $('#savingList').innerHTML = savings.length ? savings.map(s => `
-    <div class="saving-record">
-      <div class="sr-info">
-        <span class="sr-amount">+¥${s.amount.toLocaleString()}</span>
-        <span class="sr-date">${fmt(s.date)}</span>
-      </div>
-      <span class="sr-note">${s.note || goalsMap[s.goalId]?.name || ''}</span>
-      <button class="sport-record-del" data-id="${s.id}">🗑️</button>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有存钱记录~</p>';
-
-  $$('#savingList .sport-record-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const rec = DB.get('savings', []).find(s => s.id === id);
-      if (rec) {
-        // 回退金额
-        const goals = DB.get('savingGoals', []);
-        const g = goals.find(g => g.id === rec.goalId);
-        if (g) { g.saved = Math.max(0, g.saved - rec.amount); DB.set('savingGoals', goals); }
-      }
-      DB.set('savings', DB.get('savings', []).filter(s => s.id !== id));
-      renderFinance();
-    });
-  });
-}
-
-$('#toggleTuition').addEventListener('click', () => {
-  const el = $('#tuitionDetail');
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  renderFinance();
-});
-
-// 收入
-$('#saveIncomeBtn').addEventListener('click', () => {
-  const type = $('#incomeType').value;
-  const amount = parseInt($('#incomeAmount').value);
-  if (!amount || amount <= 0) { showToast('请输入有效金额'); return; }
-  const arr = DB.get('incomes', []);
-  arr.push({ id: randomId(), type, amount, date: today() });
-  DB.set('incomes', arr);
-  $('#incomeAmount').value = '';
-  renderFinance();
-  showToast('收入已记录 💵');
-});
-
-// 存钱模态框
-function openSavingModal(goalId) {
-  const goals = DB.get('savingGoals', []);
-  const sel = $('#modalSavingGoal');
-  sel.innerHTML = goals.map(g => `<option value="${g.id}">${g.icon} ${g.name}</option>`).join('');
-  sel.value = goalId;
-  $('#modalSavingAmount').value = '';
-  $('#modalSavingNote').value = '';
-  $('#savingModal').classList.add('active');
-}
-
-$('#addSavingBtn').addEventListener('click', () => openSavingModal(DB.get('savingGoals',[])[0]?.id || ''));
-$('#cancelSavingBtn').addEventListener('click', () => $('#savingModal').classList.remove('active'));
-$('#confirmSavingBtn').addEventListener('click', () => {
-  const goalId = $('#modalSavingGoal').value;
-  const amount = parseInt($('#modalSavingAmount').value);
-  if (!amount || amount <= 0) { showToast('请输入有效金额'); return; }
-  const goals = DB.get('savingGoals', []);
-  const g = goals.find(x => x.id === goalId);
-  if (g) g.saved += amount;
-  DB.set('savingGoals', goals);
-  const arr = DB.get('savings', []);
-  arr.push({ id: randomId(), goalId, amount, note: $('#modalSavingNote').value, date: today() });
-  DB.set('savings', arr);
-  $('#savingModal').classList.remove('active');
-  renderFinance();
-  showToast('存入成功！💰');
-  confettiBurst(window.innerWidth/2, 300);
-});
-
-// ---------- 阅读页 ----------
-function renderRead() {
-  const books = DB.get('books', []);
-  const yearStart = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0,10);
-  const yearRead = books.filter(b => b.status === 'done' && b._doneDate && b._doneDate >= yearStart).length;
-  const readDays = new Set(books.filter(b => b._lastRead).map(b => b._lastRead)).size;
-  $('#yearReadCount').textContent = yearRead;
-  $('#readDayCount').textContent = readDays;
-
-  const coverColors = ['#FFB088','#D4C5F9','#A0D2F7','#A8E6CF','#FFF3CD','#F5A8C8'];
-  $('#bookshelf').innerHTML = books.map((b, i) => `
-    <div class="book-card">
-      <div class="book-cover" style="background:${coverColors[i%coverColors.length]}">${b.cover || '📖'}</div>
-      <div class="book-info">
-        <div class="book-title">${b.title}</div>
-        <div class="book-author">${b.author}</div>
-        <div class="book-progress-bar">
-          <div class="book-progress-fill" style="width:${b.progress}%;background:${coverColors[i%coverColors.length]}"></div>
-        </div>
-        <div class="book-meta">
-          <span class="book-status ${b.status}">${{reading:'在读',want:'想读',done:'已读'}[b.status]}</span>
-          <span>${b.progress}%</span>
-          ${b.rating ? '⭐'.repeat(b.rating) : ''}
-        </div>
-      </div>
-      <button class="book-del" data-id="${b.id}">🗑️</button>
-    </div>
-  `).join('') || '<p class="empty-state-text">书架空空如也~</p>';
-
-  // 笔记书籍选择
-  const sel = $('#noteBook');
-  sel.innerHTML = books.map(b => `<option value="${b.id}">${b.title}</option>`).join('');
-
-  // 笔记列表
-  const allNotes = [];
-  books.forEach(b => (b.notes || []).forEach(n => allNotes.push({...n, bookTitle: b.title})));
-  allNotes.sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  $('#noteList').innerHTML = allNotes.length ? allNotes.slice(0,8).map(n => `
-    <div class="note-item">
-      <div class="note-book">📖 ${n.bookTitle} · ${fmt(n.date)}</div>
-      <div class="note-text">${n.text}</div>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有笔记~</p>';
-
-  $$('.book-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      DB.set('books', DB.get('books', []).filter(b => b.id !== btn.dataset.id));
-      renderRead();
-    });
-  });
-}
-
-$('#addBookBtn').addEventListener('click', () => {
-  const title = prompt('书名：');
-  if (!title) return;
-  const author = prompt('作者：') || '未知';
-  const status = prompt('状态(reading/want/done)：') || 'want';
-  const progress = parseInt(prompt('进度(0-100)：') || '0');
-  const coverOpts = ['📖','🧠','💡','🌟','🎭','🎨','🔬','📜','🌍','💊'];
-  const book = {
-    id: randomId(), title, author, status,
-    progress: status === 'done' ? 100 : progress,
-    rating: 0, cover: coverOpts[Math.floor(Math.random()*coverOpts.length)],
-    notes: [], _doneDate: status==='done'?today():null
-  };
-  const arr = DB.get('books', []);
-  arr.push(book);
-  DB.set('books', arr);
-  renderRead();
-  showToast('已添加到书架 📚');
-});
-
-$('#saveNoteBtn').addEventListener('click', () => {
-  const bookId = $('#noteBook').value;
-  const text = $('#noteContent').value.trim();
-  if (!text) { showToast('请输入笔记内容'); return; }
-  const books = DB.get('books', []);
-  const b = books.find(x => x.id === bookId);
-  if (b) {
-    if (!b.notes) b.notes = [];
-    b.notes.push({ id: randomId(), text, date: today() });
-    b._lastRead = today();
-    DB.set('books', books);
-    $('#noteContent').value = '';
-    renderRead();
-    showToast('笔记已保存 ✍️');
-  }
-});
-
-// 阅读目标
-$('#monthlyReadGoal').addEventListener('change', () => showToast('阅读目标已更新'));
-
-// ---------- 精进页 ----------
-function renderGrowth() {
-  const list = DB.get('growth', []).slice(-5).reverse();
-  $('#growthList').innerHTML = list.length ? list.map(g => `
-    <div class="growth-item">
-      <div class="growth-item-date">${fmt(g.date)}</div>
-      <div class="growth-item-text">${g.input.substring(0, 80)}${g.input.length>80?'...':''}</div>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有记录~</p>';
-}
-
-$('#growthAnalyzeBtn').addEventListener('click', () => {
-  const input = $('#growthInput').value.trim();
-  if (!input) { showToast('请先写下你的想法或问题'); return; }
-
-  // 模拟智能分析
-  const summary = input.length > 50 ? input.substring(0, 50) + '...' : input;
-  const quotes = [
-    '每一个认真思考的瞬间，都在为未来铺路。',
-    '不积跬步，无以至千里；不积小流，无以成江海。',
-    '真正的成长，是每天都在比昨天的自己更好一点。',
-    '路虽远，行则将至；事虽难，做则必成。',
-  ];
-  const thinkings = [
-    '从系统思维角度看，这个问题涉及多个维度的平衡。建议将大目标拆解为可量化的小步骤，每周复盘一次进度。',
-    '结合当前社会趋势，持续学习和自我迭代是核心竞争力。可以考虑建立"输入-消化-输出"的闭环系统。',
-    '从心理学角度，行动力不足往往源于目标模糊。建议用SMART原则重新定义目标，并找到内在驱动力。',
-  ];
-
-  $('#resultSummary').textContent = `概括：${summary}`;
-  $('#resultQuote').textContent = quotes[Math.floor(Math.random()*quotes.length)];
-  $('#resultThinking').textContent = thinkings[Math.floor(Math.random()*thinkings.length)];
-  $('#resultAction').textContent = '建议下一步：① 将想法转化为具体行动项 ② 设定可量化的里程碑 ③ 每周回顾调整 ④ 寻找同类社群互相督促';
-  $('#growthResult').style.display = 'block';
-
-  // 保存
-  const arr = DB.get('growth', []);
-  arr.push({ id: randomId(), input, date: today(), summary });
-  DB.set('growth', arr);
-  $('#growthInput').value = '';
-  renderGrowth();
-  showToast('分析完成 ✨');
-});
-
-// ---------- 京剧页 ----------
-const TOPIC_SUGGESTIONS = [
-  '京剧脸谱色彩科普', '儿童京剧入门动作', '京剧四大行当介绍', '京剧经典唱段赏析',
-  '京剧服饰文化故事', '如何教孩子唱京剧', '京剧与古诗词结合', '京剧小知识趣味问答',
-  '京剧名家童年故事', '京剧打击乐器认知', '京剧身段基础教学', '京剧亲子互动游戏'
-];
-
-function renderMedia() {
-  const drafts = DB.get('drafts', []);
-  $('#draftList').innerHTML = drafts.length ? drafts.slice(-5).reverse().map(d => `
-    <div class="draft-item">
-      <div class="draft-title">${d.title}</div>
-      <div class="draft-meta">${fmt(d.date)} · ${d.content.substring(0,40)}...</div>
-    </div>
-  `).join('') : '<p class="empty-state-text">草稿箱空空如也~</p>';
-
-  $('#topicTags').innerHTML = TOPIC_SUGGESTIONS.map(t => `<span class="topic-tag">${t}</span>`).join('');
-  $$('.topic-tag').forEach(tag => {
-    tag.addEventListener('click', () => {
-      $('#mediaTopic').value = tag.textContent;
-    });
-  });
-}
-
-$('#genMediaBtn').addEventListener('click', () => {
-  const topic = $('#mediaTopic').value.trim() || '儿童京剧启蒙';
-  const titles = [
-    `${topic}：让孩子爱上国粹的3个秘诀`,
-    `🌸 今日京剧小课堂：${topic}`,
-    `${topic}——亲子共学指南`,
-  ];
-  const title = titles[Math.floor(Math.random()*titles.length)];
-  const content = `今天和大家分享关于"${topic}"的内容。京剧是中华民族的瑰宝，让孩子从小接触京剧，不仅能培养艺术素养，更能增强文化自信。本文将从趣味性、互动性和知识性三个维度，为你提供一套完整的儿童京剧启蒙方案...`;
-
-  $('#previewContent').innerHTML = `
-    <div class="preview-title">${title}</div>
-    <div class="preview-body">${content}</div>
-  `;
-  $('#previewContent').dataset.title = title;
-  $('#previewContent').dataset.content = content;
-  showToast('内容已生成 🎭');
-});
-
-$('#saveDraftBtn').addEventListener('click', () => {
-  const title = $('#previewContent').dataset.title;
-  const content = $('#previewContent').dataset.content;
-  if (!title) { showToast('请先生成内容'); return; }
-  const arr = DB.get('drafts', []);
-  arr.push({ id: randomId(), title, content, date: today() });
-  DB.set('drafts', arr);
-  renderMedia();
-  showToast('已存入草稿箱 📂');
-});
-
-$('#publishMediaBtn').addEventListener('click', () => {
-  const title = $('#previewContent').dataset.title;
-  if (!title) { showToast('请先生成内容'); return; }
-  showToast('发布指导已生成（模拟）🚀');
-  confettiBurst(window.innerWidth/2, 200);
-});
-
-// 11:30 自动生成（模拟）
-setInterval(() => {
-  const now = new Date();
-  if (now.getHours() === 11 && now.getMinutes() === 30) {
-    if (!DB.get('autoGenToday', '') === today()) {
-      DB.set('autoGenToday', today());
-      const topics = TOPIC_SUGGESTIONS;
-      $('#mediaTopic').value = topics[Math.floor(Math.random()*topics.length)];
-      $('#genMediaBtn').click();
-    }
-  }
-}, 60000);
-
-// ---------- 新闻页 ----------
-const HOT_NEWS = [
-  { rank: 1, title: '2026年医保新规正式实施', heat: '9,823,441' },
-  { rank: 2, title: '全国医疗服务价格改革最新进展', heat: '7,234,512' },
-  { rank: 3, title: '儿童中医药健康管理服务规范发布', heat: '5,678,901' },
-  { rank: 4, title: 'AI辅助诊断纳入医保支付范围', heat: '4,567,123' },
-  { rank: 5, title: '多地调整门诊统筹报销比例', heat: '3,456,789' },
-];
-
-const MEDICAL_NEWS = [
-  { title: '医保违规问题专项整治：聚焦过度检查、串换项目', desc: '国家医保局通报最新一批违规案例，涉及重复收费、超标准收费等问题，提醒医疗机构加强自查自纠。' },
-  { title: '医疗服务价格立项指南更新', desc: '新增一批体现技术劳务价值的项目，调整部分检验检查类项目价格，总体不增加患者负担。' },
-  { title: '异地就医直接结算覆盖所有统筹区', desc: '跨省异地就医门诊、住院费用直接结算实现全覆盖，备案流程进一步简化。' },
-];
-
-function renderNews() {
-  $('#hotList').innerHTML = HOT_NEWS.map(h => `
-    <div class="hot-item">
-      <span class="hot-rank ${h.rank<=3?'top':''}">${h.rank}</span>
-      <span class="hot-title">${h.title}</span>
-      <span class="hot-heat">🔥 ${h.heat}</span>
-    </div>
-  `).join('');
-
-  $('#medicalList').innerHTML = MEDICAL_NEWS.map(m => `
-    <div class="medical-item">
-      <h4>🏥 ${m.title}</h4>
-      <p>${m.desc}</p>
-    </div>
-  `).join('');
-
-  $('#policyList').innerHTML = `
-    <div class="policy-item">
-      <h4>📋 2026年医保政策核心变化</h4>
-      <p>① 个人账户家庭共济范围扩大至祖辈 ② 门诊慢特病保障病种增加 ③ 谈判药品"双通道"管理常态化 ④  DRG/DIP支付改革全面深化</p>
-    </div>
-    <div class="policy-item">
-      <h4>📋 医保违规常见情形提醒</h4>
-      <p>① 挂床住院 ② 串换药品/诊疗项目 ③ 虚记费用 ④ 重复收费 ⑤ 超标准收费 ⑥ 分解住院。建议定期自查，规范运营。</p>
-    </div>
-  `;
-}
-
-$('#refreshNewsBtn').addEventListener('click', () => {
-  showToast('正在刷新热点...');
-  setTimeout(() => {
-    // 随机打乱热度
-    HOT_NEWS.forEach(h => { h.heat = (Math.random()*5000000+3000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,','); });
-    renderNews();
-    showToast('热点已更新 🔥');
-  }, 800);
-});
-
-// 10:30 自动推送（模拟）
-setInterval(() => {
-  const now = new Date();
-  if (now.getHours() === 10 && now.getMinutes() === 30) {
-    if (DB.get('newsPushToday') !== today()) {
-      DB.set('newsPushToday', today());
-      showToast('📰 今日热点已更新');
-    }
-  }
-}, 60000);
-
-// ---------- 口才·表达训练页 ----------
-const SPEECH_CAT_LABEL = { self:'🙋 自我介绍', biz:'💼 商务沟通', live:'🎙️ 直播开场', custom:'✨ 自定义' };
-let speechCat = 'self';
-let improvTimer = null;
-let improvSeconds = 30;
-let mediaRecorder = null;
-let recordChunks = [];
-let recordStartTime = 0;
-
-function renderSpeech() {
-  // 今日即兴题
-  const done = DB.get('improvDone', {});
-  const qPool = DB.get('improvQuestions', []);
-  let q = DB.get('todayImprov', '');
-  if (!q || done[today()] === undefined) {
-    q = qPool[Math.floor(Math.random()*qPool.length)] || '用30秒介绍你自己';
-    DB.set('todayImprov', q);
-  }
-  $('#improvTopic').textContent = q;
-  const isDone = !!done[today()];
-  $('#finishImprovBtn').textContent = isDone ? '✅ 今日已完成' : '✅ 完成练习';
-  $('#finishImprovBtn').disabled = isDone;
-  if (isDone) $('#finishImprovBtn').style.opacity = '0.5';
-
-  // 话术模板
-  $$('.template-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === speechCat));
-  const tpls = DB.get('speechTemplates', []).filter(t => t.cat === speechCat);
-  $('#templateList').innerHTML = tpls.length ? tpls.map(t => `
-    <div class="template-item" data-id="${t.id}">
-      <div class="template-item-header">
-        <span class="template-item-title">${t.title}</span>
-        <span class="template-item-cat">${SPEECH_CAT_LABEL[t.cat]||''}</span>
-      </div>
-      <div class="template-item-content">${t.content}</div>
-      <div class="template-item-actions">
-        <button data-act="copy" data-id="${t.id}">📋 复制</button>
-        <button data-act="edit" data-id="${t.id}">✏️ 编辑</button>
-        <button data-act="del" data-id="${t.id}">🗑️ 删除</button>
-      </div>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有该分类的话术，点「＋新建」添加~</p>';
-
-  // 绑定话术按钮
-  $$('#templateList [data-act="copy"]').forEach(b => b.addEventListener('click', () => {
-    const t = DB.get('speechTemplates',[]).find(x=>x.id===b.dataset.id);
-    if (t) { navigator.clipboard?.writeText(t.content); showToast('已复制 📋'); }
-  }));
-  $$('#templateList [data-act="del"]').forEach(b => b.addEventListener('click', () => {
-    DB.set('speechTemplates', DB.get('speechTemplates',[]).filter(t=>t.id!==b.dataset.id));
-    renderSpeech();
-  }));
-  $$('#templateList [data-act="edit"]').forEach(b => b.addEventListener('click', () => {
-    const t = DB.get('speechTemplates',[]).find(x=>x.id===b.dataset.id);
-    if (!t) return;
-    $('#templateCat').value = t.cat;
-    $('#templateTitle').value = t.title;
-    $('#templateContent').value = t.content;
-    $('#templateModal').classList.add('active');
-    $('#confirmTemplateBtn').onclick = () => {
-      t.cat = $('#templateCat').value;
-      t.title = $('#templateTitle').value.trim() || '未命名话术';
-      t.content = $('#templateContent').value.trim();
-      DB.set('speechTemplates', DB.get('speechTemplates',[]));
-      $('#templateModal').classList.remove('active');
-      renderSpeech();
-      showToast('话术已更新 ✏️');
-    };
-  }));
-
-  // 录音统计
-  const recs = DB.get('speechRecords', []);
-  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekRecs = recs.filter(r => new Date(r.date) >= weekStart);
-  $('#totalRecords').textContent = recs.length;
-  $('#weekRecords').textContent = weekRecs.length;
-  $('#totalDuration').textContent = recs.reduce((s,r)=>s+(r.duration||0),0);
-
-  // 录音列表
-  const list = recs.slice(-8).reverse();
-  $('#recordList').innerHTML = list.length ? list.map(r => `
-    <div class="record-item" data-id="${r.id}">
-      <button class="record-play" data-act="play" data-id="${r.id}">▶️</button>
-      <div class="record-info">
-        <div class="record-title">${r.title || '未命名练习'}</div>
-        <div class="record-detail">${fmt(r.date)} · ${r.duration||0}分钟</div>
-        ${r.improve ? `<div class="record-improve">💡 ${r.improve}</div>` : ''}
-      </div>
-      <button class="sport-record-del" data-act="del-rec" data-id="${r.id}">🗑️</button>
-    </div>
-  `).join('') : '<p class="empty-state-text">还没有录音记录~</p>';
-
-  $$('#recordList [data-act="del-rec"]').forEach(b => b.addEventListener('click', () => {
-    DB.set('speechRecords', DB.get('speechRecords',[]).filter(r=>r.id!==b.dataset.id));
-    renderSpeech();
-  }));
-  $$('#recordList [data-act="play"]').forEach(b => b.addEventListener('click', () => {
-    showToast('播放功能需在支持Audio playback的环境中使用');
-  }));
-}
-
-// 换一题
-$('#refreshImprov').addEventListener('click', () => {
-  const pool = DB.get('improvQuestions', []);
-  const q = pool[Math.floor(Math.random()*pool.length)];
-  DB.set('todayImprov', q);
-  $('#improvTopic').textContent = q;
-  showToast('新题目已生成 🎲');
-});
-
-// 30秒计时器
-$('#startImprovTimer').addEventListener('click', () => {
-  if (improvTimer) return;
-  improvSeconds = 30;
-  $('#improvTimer').style.display = 'block';
-  const C = 2*Math.PI*44;
-  const fill = $('#timerFill');
-  fill.style.strokeDasharray = C;
-  const tick = () => {
-    improvSeconds--;
-    $('#timerText').textContent = Math.max(0, improvSeconds);
-    fill.style.strokeDashoffset = C * (1 - improvSeconds/30);
-    if (improvSeconds <= 0) {
-      clearInterval(improvTimer); improvTimer = null;
-      showToast('时间到！说说看吧 🎤');
+    $("#review-content").innerHTML = html;
+    // 保存
+    const reviews = get("monthly-reviews", []);
+    if (!reviews.find(r => r.month === mk)) {
+      reviews.push({ month: mk, content: html, date: todayKey() });
+      set("monthly-reviews", reviews);
     }
   };
-  improvTimer = setInterval(tick, 1000);
-  showToast('计时开始 ▶️');
-});
+  function renderLatestReview() {
+    const reviews = get("monthly-reviews", []);
+    if (reviews.length === 0) return;
+    const latest = reviews[reviews.length - 1];
+    $("#review-content").innerHTML = latest.content;
+    $("#review-month-select").value = latest.month;
+  }
 
-// 完成练习
-$('#finishImprovBtn').addEventListener('click', () => {
-  const done = DB.get('improvDone', {});
-  done[today()] = true;
-  DB.set('improvDone', done);
-  if (improvTimer) { clearInterval(improvTimer); improvTimer = null; }
-  $('#improvTimer').style.display = 'none';
-  renderSpeech();
-  confettiBurst(window.innerWidth/2, 200);
-  showToast('今日即兴练习完成！🎉');
-});
-
-// 话术分类tab
-$$('.template-tab').forEach(tab => {
-  tab.addEventListener('click', () => { speechCat = tab.dataset.cat; renderSpeech(); });
-});
-
-// 新建话术模态框
-$('#addTemplateBtn').addEventListener('click', () => {
-  $('#templateCat').value = speechCat;
-  $('#templateTitle').value = '';
-  $('#templateContent').value = '';
-  $('#templateModal').classList.add('active');
-  $('#confirmTemplateBtn').onclick = () => {
-    const title = $('#templateTitle').value.trim();
-    const content = $('#templateContent').value.trim();
-    if (!title || !content) { showToast('请填写标题和内容'); return; }
-    const arr = DB.get('speechTemplates', []);
-    arr.push({ id: randomId(), cat: $('#templateCat').value, title, content });
-    DB.set('speechTemplates', arr);
-    $('#templateModal').classList.remove('active');
-    renderSpeech();
-    showToast('话术已保存 📝');
+  // ---------- 引导对话初始化 ----------
+  function initGuideChat() {
+    const today = todayKey();
+    const list = get("top3", []).filter(t => t.date === today);
+    const actions = $("#guide-actions");
+    if (list.length > 0) {
+      actions.innerHTML = list.map((t, i) => `<button onclick="quickPickTop3(${i})">${t.text}</button>`).join("");
+    } else {
+      actions.innerHTML = `<button onclick="quickPickTop3(-1)">先来添加今天最重要的一件事</button>`;
+    }
+  }
+  window.quickPickTop3 = function (i) {
+    if (i < 0) { addTop3Item(); return; }
+    const list = get("top3", []).filter(t => t.date === todayKey());
+    list[i].done = true;
+    const all = get("top3", []);
+    const idx = all.findIndex(t => t.date === todayKey() && t.text === list[i].text);
+    if (idx >= 0) all[idx].done = true;
+    set("top3", all);
+    renderTop3();
+    $("#pomodoro-row").style.display = "flex";
+    $("#guide-question").textContent = `好的，先把「${list[i].text}」做完。需要我 25 分钟后提醒你休息吗？`;
   };
-});
-$('#cancelTemplateBtn').addEventListener('click', () => $('#templateModal').classList.remove('active'));
 
-// 录音模态框
-$('#addSpeechRecordBtn').addEventListener('click', () => {
-  $('#recordTitle').value = '';
-  $('#recordImprove').value = '';
-  $('#recordStatus').textContent = '点击下方按钮开始';
-  $('#recordModal').classList.add('active');
-});
-$('#cancelRecordBtn').addEventListener('click', () => {
-  stopRecording();
-  $('#recordModal').classList.remove('active');
-});
-
-$('#startRecordBtn').addEventListener('click', async () => {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
-    stopRecording();
-    return;
-  }
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    recordChunks = [];
-    recordStartTime = Date.now();
-    mediaRecorder.ondataavailable = e => { if (e.data.size>0) recordChunks.push(e.data); };
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(recordChunks, { type: 'audio/webm' });
-      const dur = Math.round((Date.now() - recordStartTime)/60000);
-      const arr = DB.get('speechRecords', []);
-      arr.push({
-        id: randomId(),
-        title: $('#recordTitle').value.trim() || '未命名练习',
-        improve: $('#recordImprove').value.trim(),
-        duration: dur || 1,
-        date: today(),
-        audioUrl: URL.createObjectURL(blob)
-      });
-      DB.set('speechRecords', arr);
-      stream.getTracks().forEach(t => t.stop());
-      $('#recordModal').classList.remove('active');
-      renderSpeech();
-      showToast('录音已保存 🎤');
-    };
-    mediaRecorder.start();
-    $('#recordStatus').textContent = '🔴 正在录音...再点停止';
-    $('#startRecordBtn').textContent = '⏹ 停止录音';
-    $('#startRecordBtn').classList.add('recording-pulse');
-  } catch(e) {
-    showToast('麦克风权限被拒绝或未支持');
-  }
-});
-
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-  $('#startRecordBtn').textContent = '🔴 开始录音';
-  $('#startRecordBtn').classList.remove('recording-pulse');
-  $('#recordStatus').textContent = '已停止';
-}
-
-// 录音确认保存（即使没录音也能保存文字复盘）
-$('#confirmRecordBtn').addEventListener('click', () => {
-  const title = $('#recordTitle').value.trim();
-  const improve = $('#recordImprove').value.trim();
-  if (!title && !improve) { showToast('请填写点内容'); return; }
-  const arr = DB.get('speechRecords', []);
-  const dur = mediaRecorder && mediaRecorder.state === 'recording'
-    ? Math.round((Date.now()-recordStartTime)/60000) : 0;
-  stopRecording();
-  // 如果还没在onstop里存过，就在这里存
-  if (!arr.find(r => r.date === today() && r.title === title)) {
-    arr.push({
-      id: randomId(),
-      title: title || '未命名练习',
-      improve,
-      duration: dur || 1,
-      date: today(),
-    });
-    DB.set('speechRecords', arr);
-  }
-  $('#recordModal').classList.remove('active');
-  renderSpeech();
-  showToast('复盘已保存 💾');
-});
-
-// ---------- 心情页 ----------
-const MOODS = [
-  { key: 'happy', emoji: '😄', label: '开心' },
-  { key: 'calm', emoji: '😌', label: '平静' },
-  { key: 'fulfilled', emoji: '💪', label: '充实' },
-  { key: 'tired', emoji: '😮‍💨', label: '疲惫' },
-  { key: 'anxious', emoji: '😰', label: '焦虑' },
-  { key: 'down', emoji: '😢', label: '难过' },
-];
-
-function renderMood() {
-  const todayMood = DB.get('moods', {})[today()];
-  $('#moodSelector').innerHTML = MOODS.map(m => `
-    <div class="mood-opt ${todayMood===m.key?'selected':''}" data-mood="${m.key}">
-      <span class="mood-emoji">${m.emoji}</span>
-      <span class="mood-label">${m.label}</span>
-    </div>
-  `).join('');
-
-  $$('.mood-opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const moods = DB.get('moods', {});
-      moods[today()] = opt.dataset.mood;
-      DB.set('moods', moods);
-      renderMood();
-      showToast('心情已记录 💖');
-    });
-  });
-
-  // 热力图
-  const moods = DB.get('moods', {});
-  const d = new Date();
-  let html = '';
-  for (let i = 27; i >= 0; i--) {
-    const dt = new Date(d); dt.setDate(d.getDate() - i);
-    const key = dt.toISOString().slice(0,10);
-    const mood = moods[key];
-    const colors = { happy:'#FFD6E0', calm:'#A0D2F7', fulfilled:'#A8E6CF', tired:'#FFF3CD', anxious:'#D4C5F9', down:'#FFB088' };
-    const bg = mood ? colors[mood] : '#F5F0F5';
-    html += `<div class="mood-heat-cell" style="background:${bg}" title="${key}: ${mood||'未记录'}"></div>`;
-  }
-  $('#moodHeatmap').innerHTML = html;
-
-  // 图表
-  drawMoodChart(moods);
-}
-
-function drawMoodChart(moods) {
-  const canvas = $('#moodChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  const w = canvas.parentElement.clientWidth;
-  const h = 100;
-  canvas.width = w * dpr; canvas.height = h * dpr;
-  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-  ctx.scale(dpr, dpr);
-  ctx.clearRect(0,0,w,h);
-
-  const pad = 20;
-  const moodVals = { happy:5, fulfilled:4, calm:3, tired:2, anxious:1, down:1 };
-  const d = new Date();
-  const data = [];
-  for (let i = 13; i >= 0; i--) {
-    const dt = new Date(d); dt.setDate(d.getDate() - i);
-    const key = dt.toISOString().slice(0,10);
-    data.push({ date: key, val: moodVals[moods[key]] || 0 });
+  // ---------- 初始化 ----------
+  function init() {
+    applyTheme();
+    updateDate();
+    renderAlmanac();
+    checkBirthdays();
+    checkGuide();
+    refreshEncouragement();
+    initGuideChat();
+    renderTop3();
+    renderTimeline();
+    renderMonthlySummary();
+    checkWeeklyRest();
+    renderFinance();
+    renderSavingGoals();
+    renderTuition();
+    renderReflectionHistory();
+    // 每 10 分钟换一次配色
+    setInterval(applyTheme, 600000);
+    // 每天 0 点刷新日期
+    setInterval(updateDate, 60000);
   }
 
-  const max = 5, min = 0;
-  const xStep = (w - pad*2) / (data.length - 1);
-
-  // 渐变
-  const grad = ctx.createLinearGradient(0, pad, 0, h - pad);
-  grad.addColorStop(0, 'rgba(212,197,249,0.4)');
-  grad.addColorStop(1, 'rgba(212,197,249,0.02)');
-
-  // 填充
-  ctx.beginPath();
-  data.forEach((d, i) => {
-    const x = pad + i * xStep;
-    const y = pad + (1 - d.val/(max-min)) * (h - pad*2);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  });
-  ctx.lineTo(pad+(data.length-1)*xStep, h-pad);
-  ctx.lineTo(pad, h-pad);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // 线
-  ctx.beginPath();
-  data.forEach((d, i) => {
-    const x = pad + i * xStep;
-    const y = pad + (1 - d.val/(max-min)) * (h - pad*2);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-  });
-  ctx.strokeStyle = '#9B7ED8';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-}
-
-$('#saveMoodBtn').addEventListener('click', () => {
-  const moods = DB.get('moods', {});
-  moods[today()] = moods[today()] || 'calm';
-  // 保存日记
-  const diary = DB.get('diary', {});
-  diary[today()] = {
-    mood: moods[today()],
-    text: $('#moodText').value,
-    gratitude: [$('#grate1').value, $('#grate2').value, $('#grate3').value].filter(Boolean),
-  };
-  DB.set('diary', diary);
-  $('#moodText').value = '';
-  $('#grate1').value = '';
-  $('#grate2').value = '';
-  $('#grate3').value = '';
-  showToast('日记已保存 💖');
-  confettiBurst(window.innerWidth/2, 300);
-});
-
-// ---------- 习惯页 ----------
-function renderHabit() {
-  const habits = DB.get('habits', []);
-  const todayKey = today();
-
-  $('#habitGrid').innerHTML = habits.map(h => `
-    <div class="habit-card ${h.checked?'checked':''}" data-id="${h.id}">
-      <div class="habit-emoji">${h.emoji}</div>
-      <div class="habit-name">${h.name}</div>
-      <div class="habit-streak">🔥 ${h.streak}天连续</div>
-      <div class="habit-rate">${calcHabitRate(h)}%</div>
-      <button class="habit-check-btn" data-id="${h.id}">${h.checked?'✓ 已打卡':'打卡'}</button>
-    </div>
-  `).join('');
-
-  $$('.habit-check-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const arr = DB.get('habits', []);
-      const h = arr.find(x => x.id === id);
-      if (h) {
-        h.checked = !h.checked;
-        if (h.checked) {
-          h.streak++;
-          if (!h.history) h.history = {};
-          h.history[todayKey] = true;
-          confettiBurst(btn.offsetLeft + 40, btn.offsetTop - 10);
-          showToast(`${h.name}打卡成功！`);
-        } else {
-          h.streak = Math.max(0, h.streak - 1);
-        }
-        DB.set('habits', arr);
-        renderHabit();
-        // 更新连续打卡总天数
-        const totalStreak = Math.max(...arr.map(h => h.streak));
-        DB.set('streak', totalStreak);
-        renderHome();
-      }
-    });
-  });
-
-  // 月度完成率
-  $('#habitMonthlyList').innerHTML = habits.map(h => {
-    const rate = calcHabitRate(h);
-    const colors = ['#FFB088','#A8E6CF','#D4C5F9','#A0D2F7','#FFF3CD','#F5A8C8','#FFD6E0'];
-    const idx = habits.indexOf(h);
-    return `
-      <div class="habit-monthly-item">
-        <span class="hm-name">${h.emoji} ${h.name}</span>
-        <div class="hm-bar-wrap">
-          <div class="hm-bar-fill" style="width:${rate}%;background:${colors[idx%colors.length]}"></div>
-        </div>
-        <span class="hm-percent">${rate}%</span>
-      </div>
-    `;
-  }).join('');
-}
-
-function calcHabitRate(habit) {
-  const history = habit.history || {};
-  const d = new Date();
-  let count = 0, days = 0;
-  for (let i = 29; i >= 0; i--) {
-    const dt = new Date(d); dt.setDate(d.getDate() - i);
-    const key = dt.toISOString().slice(0,10);
-    days++;
-    if (history[key]) count++;
+  // 等 DOM 就绪
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
-  return Math.round(count / days * 100);
-}
-
-$('#addHabitBtn').addEventListener('click', () => {
-  const name = prompt('习惯名称：');
-  if (!name) return;
-  const emoji = prompt('选择一个emoji代表它：') || '✨';
-  const arr = DB.get('habits', []);
-  arr.push({ id: randomId(), name, emoji, checked: false, streak: 0, history: {} });
-  DB.set('habits', arr);
-  renderHabit();
-  showToast('习惯已添加 ✅');
-});
-
-// ---------- 复盘页 ----------
-function renderReview() {
-  const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const wsStr = weekStart.toISOString().slice(0,10);
-
-  const tasks = DB.get('tasks', []).filter(t => t.date >= wsStr);
-  const doneTasks = tasks.filter(t => t.done);
-  const sports = DB.get('sports', []).filter(s => s.date >= wsStr);
-  const books = DB.get('books', []);
-  const moods = DB.get('moods', {});
-  const weekMoods = Object.keys(moods).filter(d => d >= wsStr);
-
-  const html = `
-    <div class="review-section">
-      <h3>📋 本周计划完成</h3>
-      <div class="review-stat-row">
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--peach)">${tasks.length}</span><span class="review-stat-label">总任务</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--mint)">${doneTasks.length}</span><span class="review-stat-label">已完成</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--lavender)">${tasks.length?Math.round(doneTasks.length/tasks.length*100):0}%</span><span class="review-stat-label">完成率</span></div>
-      </div>
-      <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:8px;">
-        ${doneTasks.length ? doneTasks.slice(0,5).map(t => `✅ ${t.name}`).join('<br>') : '本周还没有完成任务记录~'}
-      </div>
-    </div>
-
-    <div class="review-section">
-      <h3>🏃 运动数据</h3>
-      <div class="review-stat-row">
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--mint)">${sports.length}</span><span class="review-stat-label">运动次数</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--sky-blue)">${sports.reduce((s,r)=>s+r.duration,0)}</span><span class="review-stat-label">总时长(分)</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--peach)">${sports.reduce((s,r)=>s+(r.calories||0),0)}</span><span class="review-stat-label">消耗(kcal)</span></div>
-      </div>
-    </div>
-
-    <div class="review-section">
-      <h3>📚 阅读进度</h3>
-      <div class="review-stat-row">
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--lavender)">${books.filter(b=>b.status==='reading').length}</span><span class="review-stat-label">在读</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--mint)">${books.filter(b=>b.status==='done').length}</span><span class="review-stat-label">已读</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--peach)">${books.length?Math.round(books.reduce((s,b)=>s+(b.progress||0),0)/books.length):0}%</span><span class="review-stat-label">平均进度</span></div>
-      </div>
-    </div>
-
-    <div class="review-section">
-      <h3>💰 存钱进度</h3>
-      ${DB.get('savingGoals',[]).map(g => {
-        const pct = Math.round(g.saved/g.target*100);
-        return `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.85rem;">
-          <span>${g.icon} ${g.name}</span>
-          <span style="color:var(--peach);font-weight:600;">¥${g.saved.toLocaleString()} (${pct}%)</span>
-        </div>`;
-      }).join('') || '<p class="empty-state-text">还没有存钱目标~</p>'}
-    </div>
-
-    <div class="review-section">
-      <h3>🗣️ 口才训练</h3>
-      <div class="review-stat-row">
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--peach)">${DB.get('improvDone',{})[wsStr]||Object.keys(DB.get('improvDone',{})).filter(d=>d>=wsStr).length}</span><span class="review-stat-label">即兴练习</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--lavender)">${DB.get('speechRecords',[]).filter(r=>r.date>=wsStr).length}</span><span class="review-stat-label">复盘录音</span></div>
-        <div class="review-stat"><span class="review-stat-num" style="color:var(--mint)">${DB.get('speechTemplates',[]).length}</span><span class="review-stat-label">话术模板</span></div>
-      </div>
-    </div>
-
-    <div class="review-section">
-      <h3>💖 心情回顾</h3>
-      <p style="font-size:0.85rem;color:var(--text-secondary);">
-        本周记录了 ${weekMoods.length} 天心情
-        ${weekMoods.length >= 5 ? '，情绪管理做得不错哦~ 🌸' : '，多关注自己的感受，每天记录一下吧~'}
-      </p>
-    </div>
-
-    <div class="review-section">
-      <h3>⭐ 本周最满意的事</h3>
-      <textarea class="review-textarea" placeholder="写下本周让你最有成就感的事..." id="reviewBest"></textarea>
-    </div>
-
-    <div class="review-section">
-      <h3>🔧 下周想改善的事</h3>
-      <textarea class="review-textarea" placeholder="下周想在哪方面做得更好？" id="reviewImprove"></textarea>
-    </div>
-
-    <button class="btn-primary" style="width:100%;margin-top:8px;" id="saveReviewBtn">💾 保存复盘</button>
-  `;
-  $('#reviewContent').innerHTML = html;
-
-  $('#saveReviewBtn').addEventListener('click', () => {
-    const data = {
-      weekStart: wsStr,
-      best: $('#reviewBest').value,
-      improve: $('#reviewImprove').value,
-      date: today()
-    };
-    const arr = DB.get('reviews', []);
-    arr.push(data);
-    DB.set('reviews', arr);
-    showToast('复盘已保存 🔄');
-    confettiBurst(window.innerWidth/2, 300);
-  });
-}
-
-$('#genReviewBtn').addEventListener('click', () => {
-  renderReview();
-  showToast('复盘已生成 📊');
-});
-
-// ---------- 引导页 ----------
-function initOnboarding() {
-  if (!DB.get('onboarded', false)) {
-    $('#onboardingOverlay').classList.remove('hidden');
-  }
-  $('#startBtn').addEventListener('click', () => {
-    DB.set('onboarded', true);
-    $('#onboardingOverlay').classList.add('hidden');
-    showToast('欢迎使用 WorkBuddy 🌸');
-  });
-}
-
-// ---------- 初始化 ----------
-function init() {
-  seedData();
-  initNav();
-  initOnboarding();
-  renderHome();
-
-  // 路由
-  const hash = location.hash.slice(1) || 'home';
-  switchPage(hash);
-
-  // 每日问候定时更新
-  setInterval(renderHome, 60000);
-
-  // 未完成任务顺延
-  const lastDay = DB.get('lastDayCheck', '');
-  if (lastDay && lastDay !== today()) {
-    const tasks = DB.get('tasks', []);
-    tasks.forEach(t => {
-      if (t.date === lastDay && !t.done) { t.date = today(); }
-      if (t.date === lastDay && t.done) { t.done = false; t.date = today(); } // 重置每日任务
-    });
-    DB.set('tasks', tasks);
-  }
-  DB.set('lastDayCheck', today());
-
-  // 每日重置习惯打卡
-  const habitReset = DB.get('habitResetDay', '');
-  if (habitReset !== today()) {
-    const habits = DB.get('habits', []);
-    habits.forEach(h => h.checked = false);
-    DB.set('habits', habits);
-    DB.set('habitResetDay', today());
-  }
-}
-
-// 启动
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
-
 })();

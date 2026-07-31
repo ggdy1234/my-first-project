@@ -1,797 +1,396 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>WorkBuddy · 温柔成长工作台</title>
-<link rel="stylesheet" href="styles.css">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#FFF5F0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>WorkBuddy · 温柔成长伙伴</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="WorkBuddy">
 </head>
-<body>
-
-<!-- 底部导航 -->
-<nav class="bottom-nav" id="bottomNav">
-  <a class="nav-item active" data-page="home" href="#home">
-    <svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
-    <span>首页</span>
-  </a>
-  <a class="nav-item" data-page="plan" href="#plan">
-    <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-    <span>计划</span>
-  </a>
-  <a class="nav-item" data-page="sport" href="#sport">
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
-    <span>运动</span>
-  </a>
-  <a class="nav-item" data-page="finance" href="#finance">
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.82v-1.91c-1.05-.37-2.13-.97-2.13-2.18 0-1.32 1.07-1.91 2.25-2.06v-.36c-.71-.13-1.49-.46-1.49-1.38 0-.97.94-1.43 2.19-1.63V6h2.82v2.63c1.13.26 2.06.75 2.06 1.94 0 1.25-1.01 1.77-2.28 1.95v.36c.86.14 1.71.49 1.71 1.49 0 1.05-.91 1.58-2.28 1.91z"/></svg>
-    <span>财务</span>
-  </a>
-  <a class="nav-item" data-page="read" href="#read">
-    <svg viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zM21 18.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>
-    <span>阅读</span>
-  </a>
-  <a class="nav-item" data-page="growth" href="#growth">
-    <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
-    <span>精进</span>
-  </a>
-  <a class="nav-item" data-page="media" href="#media">
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-    <span>京剧</span>
-  </a>
-  <a class="nav-item" data-page="speech" href="#speech">
-    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM7 9h10v2H7V9zm5 4H7v-2h5v2zm7-4h-2V7h2v2z"/></svg>
-    <span>口才</span>
-  </a>
-  <a class="nav-item" data-page="news" href="#news">
-    <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm10 0h2v2h-2zm-6-4h8v2h-8z"/></svg>
-    <span>热点</span>
-  </a>
-  <a class="nav-item" data-page="mood" href="#mood">
-    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-    <span>心情</span>
-  </a>
-  <a class="nav-item" data-page="habit" href="#habit">
-    <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-    <span>习惯</span>
-  </a>
-  <a class="nav-item" data-page="review" href="#review">
-    <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm7 16H5V5h2v3h10V5h2v14z"/></svg>
-    <span>复盘</span>
-  </a>
-</nav>
-
-<!-- 页面容器 -->
-<main class="page-container">
-
-  <!-- ========== 首页 ========== -->
-  <section class="page page-home active" id="page-home">
-    <!-- 顶部问候 -->
-    <header class="home-header">
-      <div class="greeting">
-        <p class="date-text" id="dateText"></p>
-        <h1 class="hello-text" id="helloText"></h1>
-        <p class="encourage-text" id="encourageText"></p>
-      </div>
-      <div class="streak-badge">
-        <span class="streak-icon">🔥</span>
-        <span class="streak-num" id="streakNum">0</span>
-        <span class="streak-label">天连续打卡</span>
-      </div>
-    </header>
-
-    <!-- 今日进度 -->
-    <div class="progress-card card">
-      <div class="progress-top">
-        <span class="progress-label">今日完成进度</span>
-        <span class="progress-percent" id="progressPercent">0%</span>
-      </div>
-      <div class="progress-bar-wrap">
-        <div class="progress-bar-fill" id="progressBarFill"></div>
-      </div>
-      <p class="progress-hint" id="progressHint">还没有任务哦，开始添加吧~</p>
-    </div>
-
-    <!-- 今日三件事 -->
-    <div class="three-things card">
-      <div class="card-title">
-        <span class="card-icon">⭐</span>
-        <span>今日最重要的三件事</span>
-      </div>
-      <div class="three-list" id="threeThingsList"></div>
-      <button class="btn-add-mini" id="addThreeBtn">＋ 添加</button>
-    </div>
-
-    <!-- 时间轴 -->
-    <div class="timeline card">
-      <div class="card-title">
-        <span class="card-icon">🕐</span>
-        <span>今日计划时间轴</span>
-      </div>
-      <div class="timeline-list" id="timelineList"></div>
-    </div>
-
-    <!-- 快捷打卡 -->
-    <div class="quick-card card">
-      <div class="card-title">
-        <span class="card-icon">⚡</span>
-        <span>快捷打卡</span>
-      </div>
-      <div class="quick-grid" id="quickGrid"></div>
-    </div>
-
-    <!-- 本周成长摘要 -->
-    <div class="weekly-card card">
-      <div class="card-title">
-        <span class="card-icon">📈</span>
-        <span>本周成长摘要</span>
-      </div>
-      <div class="weekly-stats" id="weeklyStats"></div>
-    </div>
-
-    <!-- 鼓励语 -->
-    <div class="quote-card card" id="quoteCard">
-      <p class="quote-text" id="quoteText"></p>
-      <button class="btn-refresh-quote" id="refreshQuote">🔄 换一句</button>
-    </div>
-  </section>
-
-  <!-- ========== 每日计划页 ========== -->
-  <section class="page page-plan" id="page-plan">
-    <header class="page-header">
-      <h2>📋 每日计划</h2>
-      <button class="btn-primary" id="addTaskBtn">＋ 新建任务</button>
-    </header>
-
-    <!-- 固定行程 -->
-    <div class="fixed-routine card">
-      <div class="card-title">
-        <span class="card-icon">📌</span>
-        <span>固定行程</span>
-      </div>
-      <div class="routine-list" id="routineList"></div>
-    </div>
-
-    <!-- 任务列表 -->
-    <div class="task-section">
-      <div class="task-tabs">
-        <button class="task-tab active" data-filter="all">全部</button>
-        <button class="task-tab" data-filter="work">工作</button>
-        <button class="task-tab" data-filter="study">学习</button>
-        <button class="task-tab" data-filter="life">生活</button>
-        <button class="task-tab" data-filter="health">健康</button>
-        <button class="task-tab" data-filter="growth">成长</button>
-      </div>
-      <div class="task-list" id="taskList"></div>
-    </div>
-
-    <!-- 完成率 -->
-    <div class="completion-card card">
-      <div class="card-title">
-        <span class="card-icon">🎯</span>
-        <span>任务完成率</span>
-      </div>
-      <div class="completion-circle">
-        <svg viewBox="0 0 120 120" class="circle-chart">
-          <circle cx="60" cy="60" r="50" class="circle-bg"/>
-          <circle cx="60" cy="60" r="50" class="circle-fill" id="completionCircle"/>
-        </svg>
-        <span class="circle-text" id="completionText">0%</span>
+<body data-theme="morning">
+  <div id="app">
+    <!-- 引导页 -->
+    <div id="guide-overlay" class="guide-overlay" style="display:none;">
+      <div class="guide-card">
+        <div class="guide-icon">🌊</div>
+        <h2>嗨，我是你的 WorkBuddy</h2>
+        <p class="guide-sub">我不会催你、不会卷你，只在你需要时出现。</p>
+        <div class="guide-list">
+          <div class="guide-item">📋 每天清晰规划三件事</div>
+          <div class="guide-item">💰 收入支出存钱一目了然</div>
+          <div class="guide-item">🏃 运动和心情温柔记录</div>
+          <div class="guide-item">🧘 精进想法，落地行动</div>
+          <div class="guide-item">🔥 财经医保热点精选</div>
+          <div class="guide-item">📊 每月一次温柔复盘</div>
+        </div>
+        <button onclick="closeGuide()" class="btn-primary btn-lg">我们慢慢来</button>
       </div>
     </div>
-  </section>
 
-  <!-- ========== 运动管理页 ========== -->
-  <section class="page page-sport" id="page-sport">
-    <header class="page-header">
-      <h2>🏃‍♀️ 运动管理</h2>
-    </header>
+    <!-- 顶部导航 -->
+    <nav id="top-nav" class="top-nav">
+      <div class="nav-left">
+        <span class="nav-title">WorkBuddy</span>
+      </div>
+      <div class="nav-right">
+        <span id="current-date" class="nav-date"></span>
+        <button onclick="openBirthdayPanel()" class="nav-birthday-btn" title="生日提醒">🎂</button>
+      </div>
+    </nav>
 
-    <!-- 体重记录 -->
-    <div class="weight-card card">
-      <div class="card-title">
-        <span class="card-icon">⚖️</span>
-        <span>体重记录</span>
-      </div>
-      <div class="weight-input-row">
-        <input type="number" step="0.1" placeholder="输入今日体重 kg" id="weightInput" class="input-soft">
-        <button class="btn-primary" id="saveWeightBtn">保存</button>
-      </div>
-      <canvas id="weightChart" class="chart-canvas" height="120"></canvas>
-    </div>
+    <!-- 黄历宜忌条 -->
+    <div id="almanac-bar" class="almanac-bar"></div>
 
-    <!-- 添加运动 -->
-    <div class="sport-add card">
-      <div class="card-title">
-        <span class="card-icon">➕</span>
-        <span>记录运动</span>
+    <!-- 生日提醒条 -->
+    <div id="birthday-bar" class="birthday-bar" style="display:none;"></div>
+
+    <!-- 主内容区 -->
+    <main id="main-content" class="main-content">
+
+      <!-- 首页 -->
+      <section id="page-home" class="page active">
+        <div class="home-greeting">
+          <h1 id="greeting-text">早安 ☀️</h1>
+          <p id="daily-quote" class="daily-quote">今天也是温柔的一天。</p>
+        </div>
+
+        <!-- 今日三件事 -->
+        <div class="card top3-card">
+          <div class="card-header">
+            <h3>🌿 今日三件事</h3>
+            <span id="top3-progress" class="badge">0/3</span>
+          </div>
+          <ul id="top3-list" class="top3-list"></ul>
+          <button onclick="addTop3Item()" class="btn-small btn-ghost">+ 添加一件事</button>
+        </div>
+
+        <!-- 对话式引导 -->
+        <div class="card guide-chat" id="guide-chat">
+          <div class="chat-bubble bot">
+            <span id="guide-question">早上好，今天想先完成哪一件？</span>
+          </div>
+          <div class="chat-actions" id="guide-actions"></div>
+          <div class="pomodoro-row" id="pomodoro-row" style="display:none;">
+            <span id="pomo-time">25:00</span>
+            <button onclick="startPomodoro()" class="btn-small btn-primary" id="pomo-btn">开始专注</button>
+          </div>
+        </div>
+
+        <!-- 今日时间轴 -->
+        <div class="card timeline-card">
+          <h3>⏰ 今日时间轴</h3>
+          <div id="timeline" class="timeline"></div>
+        </div>
+
+        <!-- 快捷打卡 -->
+        <div class="card quick-checkin">
+          <h3>⚡ 快捷打卡</h3>
+          <div class="checkin-grid">
+            <button class="checkin-btn" onclick="quickCheckin('阅读')">📖 阅读</button>
+            <button class="checkin-btn" onclick="quickCheckin('喝水')">💧 喝水</button>
+            <button class="checkin-btn" onclick="quickCheckin('存钱')">💰 存钱</button>
+            <button class="checkin-btn" onclick="quickCheckin('运动')">🏃 运动</button>
+            <button class="checkin-btn" onclick="quickCheckin('冥想')">🧘 冥想</button>
+          </div>
+        </div>
+
+        <!-- 本月微摘要 -->
+        <div class="card monthly-summary">
+          <h3>📅 本月微摘要</h3>
+          <div id="monthly-summary-content"></div>
+        </div>
+
+        <!-- 鼓励语 -->
+        <div class="card encouragement-card">
+          <p id="encouragement-text" class="encouragement-text">✨ 你比昨天更靠近梦想了。</p>
+          <button onclick="refreshEncouragement()" class="btn-small btn-ghost">换一句</button>
+        </div>
+
+        <!-- 每周小憩 -->
+        <div class="card weekly-rest" id="weekly-rest-card" style="display:none;">
+          <h3>🌙 本周小憩</h3>
+          <p class="rest-prompt">这周你做了很多事，现在停一分钟，跟自己待一会儿。</p>
+          <div class="rest-inputs">
+            <input type="text" id="rest-happy" placeholder="这周最开心的一件事..." />
+            <input type="text" id="rest-next" placeholder="下周最想做的一件事..." />
+            <input type="text" id="rest-self" placeholder="对自己说一句话..." />
+          </div>
+          <button onclick="saveWeeklyRest()" class="btn-primary">保存这份温柔</button>
+        </div>
+      </section>
+
+      <!-- 计划 -->
+      <section id="page-plan" class="page">
+        <h2>📋 每日计划</h2>
+        <div class="plan-controls">
+          <input type="text" id="new-task-input" placeholder="添加新任务..." />
+          <select id="new-task-category">
+            <option value="工作">工作</option>
+            <option value="学习">学习</option>
+            <option value="生活">生活</option>
+            <option value="健康">健康</option>
+            <option value="家庭">家庭</option>
+          </select>
+          <button onclick="addTask()" class="btn-primary">添加</button>
+        </div>
+        <div class="task-stats">
+          <span>完成率：<span id="task-completion-rate">0%</span></span>
+        </div>
+        <div class="fixed-schedule card">
+          <h3>📌 固定行程</h3>
+          <ul id="fixed-schedule-list">
+            <li>05:15 读书（共读）</li>
+            <li>06:40 敲胆经（站立，八段锦）</li>
+            <li>13:00 做脸/美容</li>
+            <li>17:00 练字</li>
+            <li>20:00 呼啦圈力量训练</li>
+          </ul>
+        </div>
+        <div id="task-list" class="task-list"></div>
+
+        <h3 style="margin-top:18px;">✅ 习惯打卡</h3>
+        <div id="habit-grid" class="habit-grid"></div>
+        <div class="add-habit-row">
+          <input type="text" id="new-habit-name" placeholder="新习惯名称" />
+          <button onclick="addCustomHabit()" class="btn-primary">添加</button>
+        </div>
+      </section>
+
+      <!-- 财务 -->
+      <section id="page-finance" class="page">
+        <h2>💰 财务管家</h2>
+
+        <!-- 本月收支结存 -->
+        <div class="card finance-overview">
+          <h3>📊 本月收支结存</h3>
+          <div class="finance-grid">
+            <div class="finance-item income">
+              <span class="finance-label">本月收入</span>
+              <span class="finance-num" id="fin-income">¥0</span>
+            </div>
+            <div class="finance-item expense">
+              <span class="finance-label">本月支出</span>
+              <span class="finance-num" id="fin-expense">¥0</span>
+            </div>
+            <div class="finance-item saving">
+              <span class="finance-label">本月存钱</span>
+              <span class="finance-num" id="fin-saving">¥0</span>
+            </div>
+            <div class="finance-item balance">
+              <span class="finance-label">本月结余</span>
+              <span class="finance-num" id="fin-balance">¥0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 收入 -->
+        <div class="card income-section">
+          <h3>💵 本月收入</h3>
+          <div class="income-row"><label>工资收入</label><input type="number" id="income-salary" placeholder="0" /></div>
+          <div class="income-row"><label>绩效收入</label><input type="number" id="income-performance" placeholder="0" /></div>
+          <div class="income-row"><label>季奖收入</label><input type="number" id="income-bonus" placeholder="0" /></div>
+          <div class="income-row"><label>其他收入</label><input type="number" id="income-other" placeholder="0" /></div>
+          <button onclick="saveIncome()" class="btn-primary">保存收入</button>
+        </div>
+
+        <!-- 支出 -->
+        <div class="card expense-section">
+          <h3>💸 本月支出</h3>
+          <div id="expense-rows"></div>
+          <button onclick="addExpenseRow()" class="btn-small btn-ghost">+ 添加支出项</button>
+        </div>
+
+        <!-- 学费预存 -->
+        <div class="card tuition-section">
+          <div class="card-header">
+            <h3>🎓 学费预存（骐宝+知烨合计）</h3>
+            <span class="badge" id="tuition-monthly">本月应存 ¥0</span>
+          </div>
+          <div class="tuition-stream">
+            <div class="stream-bar"><div id="tuition-stream-fill" class="stream-fill"></div></div>
+            <div class="stream-info">
+              <span id="tuition-saved">已存 ¥0</span>
+              <span id="tuition-target">目标 ¥0</span>
+              <span id="tuition-percent">0%</span>
+            </div>
+          </div>
+          <details class="tuition-details">
+            <summary>📋 骐宝学费明细</summary>
+            <div id="tuition-qb-list"></div>
+            <button onclick="addTuitionItem('qb')" class="btn-small btn-ghost">+ 添加骐宝项</button>
+          </details>
+          <details class="tuition-details">
+            <summary>📋 知烨学费明细</summary>
+            <div id="tuition-zy-list"></div>
+            <button onclick="addTuitionItem('zy')" class="btn-small btn-ghost">+ 添加知烨项</button>
+          </details>
+          <div class="save-tuition-row">
+            <input type="number" id="tuition-save-amount" placeholder="存入金额" />
+            <input type="text" id="tuition-save-note" placeholder="备注" />
+            <button onclick="saveTuition()" class="btn-primary">存入</button>
+          </div>
+          <div id="tuition-history" class="history-list"></div>
+        </div>
+
+        <!-- 多目标存钱 -->
+        <div class="card savings-section">
+          <div class="card-header">
+            <h3>🪷 存钱目标</h3>
+            <button onclick="addSavingGoal()" class="btn-small btn-ghost">+ 添加目标</button>
+          </div>
+          <div id="saving-goals-container"></div>
+        </div>
+      </section>
+
+      <!-- 健康 -->
+      <section id="page-health" class="page">
+        <h2>🏃 健康与心境</h2>
+
+        <!-- 体重 -->
+        <div class="card weight-card">
+          <h3>⚖️ 体重管理</h3>
+          <div class="weight-input-row">
+            <input type="number" id="weight-input" placeholder="今日体重 (kg)" step="0.1" />
+            <button onclick="saveWeight()" class="btn-primary">保存</button>
+          </div>
+          <canvas id="weight-chart" width="300" height="150"></canvas>
+        </div>
+
+        <!-- 运动 -->
+        <div class="card sport-card">
+          <h3>🏋️ 运动记录</h3>
+          <div class="sport-form">
+            <select id="sport-type">
+              <option value="跑步">跑步</option>
+              <option value="散步">散步</option>
+              <option value="瑜伽">瑜伽</option>
+              <option value="力量训练">力量训练</option>
+              <option value="呼啦圈">呼啦圈</option>
+              <option value="八段锦">八段锦</option>
+            </select>
+            <input type="number" id="sport-duration" placeholder="时长(分钟)" />
+            <input type="number" id="sport-calories" placeholder="消耗(kcal)" />
+            <textarea id="sport-feeling" placeholder="运动感受..."></textarea>
+            <button onclick="saveSport()" class="btn-primary">记录运动</button>
+          </div>
+          <div class="sport-stats">
+            <p>本周运动次数：<span id="week-sport-count">0</span></p>
+            <p>本周总时长：<span id="week-sport-duration">0</span> 分钟</p>
+          </div>
+          <div class="calendar-checkin" id="sport-calendar"></div>
+        </div>
+
+        <!-- 心情 -->
+        <div class="card mood-card">
+          <h3>😊 今日心情</h3>
+          <div class="mood-selector">
+            <span onclick="selectMood('😄开心')">😄</span>
+            <span onclick="selectMood('😌平静')">😌</span>
+            <span onclick="selectMood('💪充实')">💪</span>
+            <span onclick="selectMood('😩疲惫')">😩</span>
+            <span onclick="selectMood('😰焦虑')">😰</span>
+            <span onclick="selectMood('😢难过')">😢</span>
+          </div>
+          <textarea id="mood-reason" placeholder="发生了什么？情绪原因..." rows="2"></textarea>
+          <textarea id="grateful-list" placeholder="今天值得感谢的三件小事..." rows="2"></textarea>
+          <button onclick="saveMood()" class="btn-primary">保存心情</button>
+          <canvas id="mood-chart" width="280" height="100"></canvas>
+        </div>
+      </section>
+
+      <!-- 精进 -->
+      <section id="page-grow" class="page">
+        <h2>🧘 日日精进</h2>
+        <p class="page-desc">写下你的想法或问题，我会帮你梳理、总结、延展，并给出明天就能做的行动。</p>
+        <textarea id="reflection-input" placeholder="比如：最近总觉得时间不够用，想学英语但静不下心..." rows="5"></textarea>
+        <button onclick="analyzeReflection()" class="btn-primary btn-lg">开始梳理</button>
+
+        <div id="reflection-result" class="reflection-result"></div>
+
+        <h3 style="margin-top:18px;">📂 历史记录</h3>
+        <div id="reflection-history" class="reflection-history"></div>
+      </section>
+
+      <!-- 热点 -->
+      <section id="page-hot" class="page">
+        <h2>🔥 精选热点</h2>
+        <p class="page-desc">聚焦财经、医保稽核、国家医保局立项指南，以及其他对你有意义的新闻。</p>
+        <button onclick="refreshHot()" class="btn-primary">🔄 刷新热点</button>
+
+        <div class="hot-section">
+          <h3>📈 财经要闻</h3>
+          <div id="hot-finance" class="hot-list"></div>
+        </div>
+        <div class="hot-section">
+          <h3>🏥 医保稽核动态</h3>
+          <div id="hot-medical-audit" class="hot-list"></div>
+        </div>
+        <div class="hot-section">
+          <h3>📋 国家医保局立项指南</h3>
+          <div id="hot-medical-guide" class="hot-list"></div>
+        </div>
+        <div class="hot-section">
+          <h3>📰 精选热点</h3>
+          <div id="hot-curated" class="hot-list"></div>
+        </div>
+      </section>
+
+      <!-- 复盘 -->
+      <section id="page-review" class="page">
+        <h2>📊 月度复盘</h2>
+        <p class="page-desc">每月1号自动生成。不审问你，只是回看这个月走过的路。</p>
+        <div class="review-month-selector">
+          <label>查看月份：</label>
+          <select id="review-month-select"></select>
+          <button onclick="generateMonthlyReview()" class="btn-primary">生成本月复盘</button>
+        </div>
+        <div id="review-content"></div>
+      </section>
+
+    </main>
+
+    <!-- 底部导航 -->
+    <nav id="bottom-nav" class="bottom-nav">
+      <button class="nav-item active" data-page="home" title="首页">🏠<span>首页</span></button>
+      <button class="nav-item" data-page="plan" title="计划">📋<span>计划</span></button>
+      <button class="nav-item" data-page="finance" title="财务">💰<span>财务</span></button>
+      <button class="nav-item" data-page="health" title="健康">🏃<span>健康</span></button>
+      <button class="nav-item" data-page="grow" title="精进">🧘<span>精进</span></button>
+      <button class="nav-item" data-page="hot" title="热点">🔥<span>热点</span></button>
+      <button class="nav-item" data-page="review" title="复盘">📊<span>复盘</span></button>
+    </nav>
+  </div>
+
+  <!-- 生日管理弹窗 -->
+  <div id="birthday-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🎂 生日提醒</h3>
+        <button onclick="closeBirthdayPanel()" class="btn-close">✕</button>
       </div>
-      <div class="sport-form">
-        <select id="sportType" class="input-soft">
-          <option value="跑步">🏃 跑步</option>
-          <option value="散步">🚶 散步</option>
-          <option value="瑜伽">🧘 瑜伽</option>
-          <option value="力量训练">💪 力量训练</option>
-          <option value="骑行">🚴 骑行</option>
-          <option value="呼啦圈">🌀 呼啦圈</option>
-          <option value="八段锦">🥋 八段锦</option>
-          <option value="其他">✨ 其他</option>
+      <div id="birthday-list" class="birthday-list"></div>
+      <div class="birthday-add">
+        <input type="text" id="bd-name" placeholder="姓名（如：妈妈）" />
+        <input type="date" id="bd-date" />
+        <select id="bd-calendar-type">
+          <option value="solar">公历</option>
+          <option value="lunar">农历</option>
         </select>
-        <input type="number" placeholder="时长(分钟)" id="sportDuration" class="input-soft">
-        <input type="number" placeholder="消耗热量(kcal)" id="sportCalories" class="input-soft">
-        <select id="sportFeeling" class="input-soft">
-          <option value="轻松">😊 轻松</option>
-          <option value="适中">😌 适中</option>
-          <option value="疲惫">😮‍💨 疲惫</option>
-          <option value="畅快">🤩 畅快</option>
-        </select>
-        <button class="btn-primary" id="saveSportBtn">保存记录</button>
+        <input type="number" id="bd-advance" placeholder="提前几天提醒" value="3" min="1" max="30" />
+        <button onclick="addBirthday()" class="btn-primary">添加</button>
       </div>
-    </div>
-
-    <!-- 运动目标 -->
-    <div class="sport-goal card">
-      <div class="card-title">
-        <span class="card-icon">🎯</span>
-        <span>本周运动目标</span>
-      </div>
-      <div class="goal-row">
-        <span>每周运动次数</span>
-        <input type="number" id="weeklyGoalTimes" value="4" min="1" max="14" class="input-soft input-small">
-        <span>次</span>
-      </div>
-      <div class="goal-row">
-        <span>每周运动时长</span>
-        <input type="number" id="weeklyGoalMinutes" value="180" min="30" max="1000" class="input-soft input-small">
-        <span>分钟</span>
-      </div>
-    </div>
-
-    <!-- 运动统计 -->
-    <div class="sport-stats card">
-      <div class="stat-grid">
-        <div class="stat-item">
-          <span class="stat-num" id="weekSportTimes">0</span>
-          <span class="stat-label">本周次数</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-num" id="weekSportMinutes">0</span>
-          <span class="stat-label">总时长(分)</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-num" id="sportStreak">0</span>
-          <span class="stat-label">连续天数</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 运动日历 -->
-    <div class="sport-calendar card">
-      <div class="card-title">
-        <span class="card-icon">📅</span>
-        <span>运动打卡日历</span>
-      </div>
-      <div class="mini-calendar" id="sportCalendar"></div>
-    </div>
-
-    <!-- 运动记录列表 -->
-    <div class="sport-history card">
-      <div class="card-title">
-        <span class="card-icon">📝</span>
-        <span>近期记录</span>
-      </div>
-      <div class="sport-list" id="sportList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 财务/存钱页 ========== -->
-  <section class="page page-finance" id="page-finance">
-    <header class="page-header">
-      <h2>💰 存钱计划</h2>
-      <button class="btn-primary" id="addSavingBtn">＋ 记一笔</button>
-    </header>
-
-    <!-- 收入记录 -->
-    <div class="income-card card">
-      <div class="card-title">
-        <span class="card-icon">💵</span>
-        <span>本月收入</span>
-      </div>
-      <div class="income-form">
-        <select id="incomeType" class="input-soft">
-          <option value="工资">💰 工资</option>
-          <option value="绩效">📊 绩效</option>
-          <option value="季奖">🏆 季奖</option>
-          <option value="其他">✨ 其他</option>
-        </select>
-        <input type="number" placeholder="金额" id="incomeAmount" class="input-soft">
-        <button class="btn-primary" id="saveIncomeBtn">记录</button>
-      </div>
-      <div class="income-total">
-        <span>本月总收入：</span>
-        <span class="income-num" id="monthlyIncome">¥0</span>
-      </div>
-    </div>
-
-    <!-- 学费目标 -->
-    <div class="tuition-card card">
-      <div class="card-title">
-        <span class="card-icon">🎓</span>
-        <span>学费目标（年度）</span>
-        <button class="btn-link" id="toggleTuition">展开明细</button>
-      </div>
-      <div class="tuition-progress">
-        <div class="tuition-bar"><div class="tuition-fill" id="tuitionFill"></div></div>
-        <div class="tuition-nums">
-          <span id="tuitionSaved">¥0</span> / <span id="tuitionTotal">¥88,000</span>
-        </div>
-      </div>
-      <div class="tuition-detail" id="tuitionDetail" style="display:none;"></div>
-    </div>
-
-    <!-- 存钱目标列表 -->
-    <div class="saving-goals" id="savingGoals"></div>
-
-    <!-- 存钱记录 -->
-    <div class="saving-history card">
-      <div class="card-title">
-        <span class="card-icon">📋</span>
-        <span>存钱记录</span>
-      </div>
-      <div class="saving-list" id="savingList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 阅读记录页 ========== -->
-  <section class="page page-read" id="page-read">
-    <header class="page-header">
-      <h2>📚 阅读记录</h2>
-      <button class="btn-primary" id="addBookBtn">＋ 添加书籍</button>
-    </header>
-
-    <!-- 阅读目标 -->
-    <div class="read-goal card">
-      <div class="card-title">
-        <span class="card-icon">🎯</span>
-        <span>本月阅读目标</span>
-      </div>
-      <div class="goal-row">
-        <span>每月阅读</span>
-        <input type="number" id="monthlyReadGoal" value="2" min="1" max="20" class="input-soft input-small">
-        <span>本书</span>
-      </div>
-      <div class="read-stats-row">
-        <div class="read-stat">
-          <span class="stat-num" id="yearReadCount">0</span>
-          <span class="stat-label">年度已读</span>
-        </div>
-        <div class="read-stat">
-          <span class="stat-num" id="readDayCount">0</span>
-          <span class="stat-label">阅读天数</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 书架 -->
-    <div class="bookshelf" id="bookshelf"></div>
-
-    <!-- 读书笔记 -->
-    <div class="notes-card card">
-      <div class="card-title">
-        <span class="card-icon">✍️</span>
-        <span>读书笔记</span>
-      </div>
-      <div class="note-form">
-        <select id="noteBook" class="input-soft"></select>
-        <textarea placeholder="写下你的感悟、金句摘录..." id="noteContent" class="input-soft textarea-soft"></textarea>
-        <button class="btn-primary" id="saveNoteBtn">保存笔记</button>
-      </div>
-      <div class="note-list" id="noteList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 日日精进页 ========== -->
-  <section class="page page-growth" id="page-growth">
-    <header class="page-header">
-      <h2>🌱 日日精进</h2>
-    </header>
-
-    <!-- 输入区 -->
-    <div class="growth-input card">
-      <div class="card-title">
-        <span class="card-icon">💡</span>
-        <span>想法 / 问题</span>
-      </div>
-      <textarea placeholder="写下你今天的想法、困惑或灵感..." id="growthInput" class="input-soft textarea-soft"></textarea>
-      <button class="btn-primary" id="growthAnalyzeBtn">✨ 智能分析</button>
-    </div>
-
-    <!-- 分析结果 -->
-    <div class="growth-result card" id="growthResult" style="display:none;">
-      <div class="result-section">
-        <h4>📝 内容概括</h4>
-        <p id="resultSummary"></p>
-      </div>
-      <div class="result-section">
-        <h4>🔥 金句风格总结</h4>
-        <p id="resultQuote"></p>
-      </div>
-      <div class="result-section">
-        <h4>🌐 衍生思考</h4>
-        <p id="resultThinking"></p>
-      </div>
-      <div class="result-section">
-        <h4>🎯 行动指导</h4>
-        <p id="resultAction"></p>
-      </div>
-    </div>
-
-    <!-- 历史记录 -->
-    <div class="growth-history card">
-      <div class="card-title">
-        <span class="card-icon">📜</span>
-        <span>精进日记</span>
-      </div>
-      <div class="growth-list" id="growthList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 京剧视频页 ========== -->
-  <section class="page page-media" id="page-media">
-    <header class="page-header">
-      <h2>🎭 儿童京剧 · 自媒体</h2>
-    </header>
-
-    <!-- 生成区 -->
-    <div class="media-gen card">
-      <div class="card-title">
-        <span class="card-icon">🤖</span>
-        <span>内容生成</span>
-      </div>
-      <div class="media-topic">
-        <input type="text" placeholder="输入选题方向（如：京剧脸谱科普）" id="mediaTopic" class="input-soft">
-        <button class="btn-primary" id="genMediaBtn">立即生成</button>
-      </div>
-    </div>
-
-    <!-- 今日生成预览 -->
-    <div class="media-preview card" id="mediaPreview">
-      <div class="card-title">
-        <span class="card-icon">📄</span>
-        <span>今日生成预览</span>
-      </div>
-      <div class="preview-content" id="previewContent">
-        <p class="preview-hint">点击「立即生成」或等待 11:30 自动生成今日内容</p>
-      </div>
-      <div class="preview-actions">
-        <button class="btn-secondary" id="saveDraftBtn">📥 存入草稿箱</button>
-        <button class="btn-primary" id="publishMediaBtn">🚀 发布指导</button>
-      </div>
-    </div>
-
-    <!-- 选题建议 -->
-    <div class="media-topics card">
-      <div class="card-title">
-        <span class="card-icon">💡</span>
-        <span>选题建议</span>
-      </div>
-      <div class="topic-tags" id="topicTags"></div>
-    </div>
-
-    <!-- 草稿箱 -->
-    <div class="media-drafts card">
-      <div class="card-title">
-        <span class="card-icon">📂</span>
-        <span>草稿箱</span>
-      </div>
-      <div class="draft-list" id="draftList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 口才·表达训练页 ========== -->
-  <section class="page page-speech" id="page-speech">
-    <header class="page-header">
-      <h2>🗣️ 口才 · 表达训练</h2>
-      <button class="btn-primary" id="addSpeechRecordBtn">＋ 新建话术</button>
-    </header>
-
-    <!-- 今日即兴题 -->
-    <div class="speech-daily card">
-      <div class="card-title">
-        <span class="card-icon">🎲</span>
-        <span>今日即兴练习</span>
-        <button class="btn-link" id="refreshImprov">换一题</button>
-      </div>
-      <div class="improv-card">
-        <p class="improv-topic" id="improvTopic">点击「换一题」获取今日即兴题目</p>
-        <div class="improv-meta">
-          <span class="improv-tag" id="improvTag">每日一练</span>
-          <span class="improv-time">⏱ 30秒表达</span>
-        </div>
-      </div>
-      <div class="improv-actions">
-        <button class="btn-secondary" id="startImprovTimer">▶️ 开始计时</button>
-        <button class="btn-primary" id="finishImprovBtn">✅ 完成练习</button>
-      </div>
-      <div class="improv-timer" id="improvTimer" style="display:none;">
-        <div class="timer-circle">
-          <svg viewBox="0 0 100 100" class="timer-svg">
-            <circle cx="50" cy="50" r="44" class="timer-bg"/>
-            <circle cx="50" cy="50" r="44" class="timer-fill" id="timerFill"/>
-          </svg>
-          <span class="timer-text" id="timerText">30</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 话术模板 -->
-    <div class="speech-templates card">
-      <div class="card-title">
-        <span class="card-icon">📝</span>
-        <span>话术模板</span>
-        <button class="btn-link" id="addTemplateBtn">＋ 新建</button>
-      </div>
-      <div class="template-tabs">
-        <button class="template-tab active" data-cat="self">🙋 自我介绍</button>
-        <button class="template-tab" data-cat="biz">💼 商务沟通</button>
-        <button class="template-tab" data-cat="live">🎙️ 直播开场</button>
-        <button class="template-tab" data-cat="custom">✨ 自定义</button>
-      </div>
-      <div class="template-list" id="templateList"></div>
-    </div>
-
-    <!-- 复盘录音 -->
-    <div class="speech-records card">
-      <div class="card-title">
-        <span class="card-icon">🎤</span>
-        <span>复盘录音</span>
-      </div>
-      <div class="record-stats">
-        <div class="record-stat">
-          <span class="stat-num" id="totalRecords">0</span>
-          <span class="stat-label">累计录音</span>
-        </div>
-        <div class="record-stat">
-          <span class="stat-num" id="weekRecords">0</span>
-          <span class="stat-label">本周次数</span>
-        </div>
-        <div class="record-stat">
-          <span class="stat-num" id="totalDuration">0</span>
-          <span class="stat-label">总时长(分)</span>
-        </div>
-      </div>
-      <div class="record-list" id="recordList"></div>
-      <p class="record-hint">💡 录音功能需浏览器授权麦克风，点「添加录音」开始</p>
-    </div>
-  </section>
-
-  <!-- ========== 热点新闻页 ========== -->
-  <section class="page page-news" id="page-news">
-    <header class="page-header">
-      <h2>📰 热点新闻</h2>
-      <button class="btn-secondary" id="refreshNewsBtn">🔄 刷新</button>
-    </header>
-
-    <!-- 热搜列表 -->
-    <div class="news-hot card">
-      <div class="card-title">
-        <span class="card-icon">🔥</span>
-        <span>今日热搜</span>
-      </div>
-      <div class="hot-list" id="hotList"></div>
-    </div>
-
-    <!-- 医疗医保 -->
-    <div class="news-medical card">
-      <div class="card-title">
-        <span class="card-icon">🏥</span>
-        <span>医疗 · 医保热点</span>
-      </div>
-      <div class="medical-list" id="medicalList"></div>
-    </div>
-
-    <!-- 政策解读 -->
-    <div class="news-policy card">
-      <div class="card-title">
-        <span class="card-icon">📋</span>
-        <span>政策解读</span>
-      </div>
-      <div class="policy-list" id="policyList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 心情日记页 ========== -->
-  <section class="page page-mood" id="page-mood">
-    <header class="page-header">
-      <h2>💖 心情日记</h2>
-    </header>
-
-    <!-- 今日心情 -->
-    <div class="mood-today card">
-      <div class="card-title">
-        <span class="card-icon">😊</span>
-        <span>今天感觉怎么样？</span>
-      </div>
-      <div class="mood-selector" id="moodSelector"></div>
-    </div>
-
-    <!-- 感恩三件事 -->
-    <div class="gratitude card">
-      <div class="card-title">
-        <span class="card-icon">🙏</span>
-        <span>今天值得感谢的三件小事</span>
-      </div>
-      <div class="gratitude-inputs">
-        <input type="text" placeholder="第一件..." id="grate1" class="input-soft">
-        <input type="text" placeholder="第二件..." id="grate2" class="input-soft">
-        <input type="text" placeholder="第三件..." id="grate3" class="input-soft">
-      </div>
-    </div>
-
-    <!-- 日记正文 -->
-    <div class="mood-diary card">
-      <div class="card-title">
-        <span class="card-icon">📝</span>
-        <span>写点什么吧</span>
-      </div>
-      <textarea placeholder="今天发生了什么？为什么有这样的感受？想对自己说什么？" id="moodText" class="input-soft textarea-soft"></textarea>
-      <button class="btn-primary" id="saveMoodBtn">💾 保存日记</button>
-    </div>
-
-    <!-- 心情趋势 -->
-    <div class="mood-trend card">
-      <div class="card-title">
-        <span class="card-icon">📊</span>
-        <span>近期心情趋势</span>
-      </div>
-      <canvas id="moodChart" class="chart-canvas" height="100"></canvas>
-    </div>
-
-    <!-- 日历热力图 -->
-    <div class="mood-calendar card">
-      <div class="card-title">
-        <span class="card-icon">🗓️</span>
-        <span>心情日历</span>
-      </div>
-      <div class="mood-heatmap" id="moodHeatmap"></div>
-    </div>
-  </section>
-
-  <!-- ========== 习惯打卡页 ========== -->
-  <section class="page page-habit" id="page-habit">
-    <header class="page-header">
-      <h2>✅ 习惯打卡</h2>
-      <button class="btn-primary" id="addHabitBtn">＋ 新建习惯</button>
-    </header>
-
-    <div class="habit-grid" id="habitGrid"></div>
-
-    <!-- 月度统计 -->
-    <div class="habit-monthly card">
-      <div class="card-title">
-        <span class="card-icon">📅</span>
-        <span>本月习惯完成率</span>
-      </div>
-      <div class="habit-monthly-list" id="habitMonthlyList"></div>
-    </div>
-  </section>
-
-  <!-- ========== 每周复盘页 ========== -->
-  <section class="page page-review" id="page-review">
-    <header class="page-header">
-      <h2>🔄 每周复盘</h2>
-      <button class="btn-primary" id="genReviewBtn">📊 生成本周复盘</button>
-    </header>
-
-    <div class="review-content" id="reviewContent">
-      <p class="review-hint">点击「生成本周复盘」查看本周成长全貌</p>
-    </div>
-  </section>
-
-</main>
-
-<!-- 模态框：添加任务 -->
-<div class="modal-overlay" id="taskModal">
-  <div class="modal-content">
-    <h3>新建任务</h3>
-    <input type="text" placeholder="任务名称" id="modalTaskName" class="input-soft">
-    <input type="time" id="modalTaskTime" class="input-soft">
-    <select id="modalTaskCat" class="input-soft">
-      <option value="work">💼 工作</option>
-      <option value="study">📖 学习</option>
-      <option value="life">🏠 生活</option>
-      <option value="health">💪 健康</option>
-      <option value="growth">🌱 成长</option>
-    </select>
-    <select id="modalTaskPriority" class="input-soft">
-      <option value="low">🟢 低优先级</option>
-      <option value="mid">🟡 中优先级</option>
-      <option value="high">🔴 高优先级</option>
-    </select>
-    <textarea placeholder="备注（可选）" id="modalTaskNote" class="input-soft textarea-soft"></textarea>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="cancelTaskBtn">取消</button>
-      <button class="btn-primary" id="confirmTaskBtn">确认</button>
     </div>
   </div>
-</div>
 
-<!-- 模态框：添加存钱 -->
-<div class="modal-overlay" id="savingModal">
-  <div class="modal-content">
-    <h3>记录存钱</h3>
-    <select id="modalSavingGoal" class="input-soft"></select>
-    <input type="number" placeholder="存入金额" id="modalSavingAmount" class="input-soft">
-    <input type="text" placeholder="备注（可选）" id="modalSavingNote" class="input-soft">
-    <div class="modal-actions">
-      <button class="btn-cancel" id="cancelSavingBtn">取消</button>
-      <button class="btn-primary" id="confirmSavingBtn">确认存入</button>
-    </div>
+  <!-- 番茄钟通知 -->
+  <div id="pomo-toast" class="pomo-toast" style="display:none;">
+    <span id="pomo-toast-text">⏰ 专注结束，起来喝口水吧</span>
   </div>
-</div>
 
-<!-- 引导页 -->
-<div class="onboarding-overlay" id="onboardingOverlay">
-  <div class="onboarding-content">
-    <div class="onboarding-emoji">🌸</div>
-    <h2>欢迎来到 WorkBuddy</h2>
-    <p>你的温柔成长伙伴</p>
-    <div class="onboarding-features">
-      <div class="feature-item">📋 每天清晰规划</div>
-      <div class="feature-item">💰 轻松管理财务</div>
-      <div class="feature-item">📚 记录阅读成长</div>
-      <div class="feature-item">🏃‍♀️ 追踪运动健康</div>
-      <div class="feature-item">🗣️ 口才表达训练</div>
-      <div class="feature-item">💖 关注心情变化</div>
-      <div class="feature-item">🔄 每周自动复盘</div>
-    </div>
-    <button class="btn-primary btn-start" id="startBtn">开始使用</button>
-  </div>
-</div>
-
-<!-- 模态框：新建话术模板 -->
-<div class="modal-overlay" id="templateModal">
-  <div class="modal-content">
-    <h3>新建话术模板</h3>
-    <select id="templateCat" class="input-soft">
-      <option value="self">🙋 自我介绍</option>
-      <option value="biz">💼 商务沟通</option>
-      <option value="live">🎙️ 直播开场</option>
-      <option value="custom">✨ 自定义</option>
-    </select>
-    <input type="text" placeholder="话术标题（如：30秒自我介绍）" id="templateTitle" class="input-soft">
-    <textarea placeholder="写下话术内容..." id="templateContent" class="input-soft textarea-soft" style="min-height:100px;"></textarea>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="cancelTemplateBtn">取消</button>
-      <button class="btn-primary" id="confirmTemplateBtn">保存</button>
-    </div>
-  </div>
-</div>
-
-<!-- 模态框：录音复盘 -->
-<div class="modal-overlay" id="recordModal">
-  <div class="modal-content">
-    <h3>🎤 复盘录音</h3>
-    <input type="text" placeholder="本次练习主题" id="recordTitle" class="input-soft">
-    <div class="record-controls" style="text-align:center;margin:16px 0;">
-      <button class="btn-primary" id="startRecordBtn" style="margin-bottom:10px;">🔴 开始录音</button>
-      <p style="font-size:0.8rem;color:var(--text-light);" id="recordStatus">点击下方按钮开始</p>
-    </div>
-    <textarea placeholder="练习后改进点..." id="recordImprove" class="input-soft textarea-soft"></textarea>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="cancelRecordBtn">取消</button>
-      <button class="btn-primary" id="confirmRecordBtn">保存录音</button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div class="toast" id="toast"></div>
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
